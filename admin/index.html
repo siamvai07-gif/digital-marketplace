@@ -1,0 +1,1922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#060913">
+<meta name="robots" content="noindex,nofollow">
+<title>NEXUS ADMIN — Digital Marketplace &amp; Dollar Terminal</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%2300f2fe'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='%23060913' font-family='Arial' font-weight='900'>A</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<style>
+:root {
+  --primary: #00f2fe;
+  --primary-glow: rgba(0, 242, 254, 0.4);
+  --secondary: #7000ff;
+  --accent: #00f5a0;
+  --gold: #ffd700;
+  --danger: #ff3366;
+  --bg: #060913;
+  --sidebar-bg: rgba(10, 15, 32, 0.95);
+  --surface: rgba(14, 22, 44, 0.7);
+  --surface-hover: rgba(22, 34, 68, 0.85);
+  --border: rgba(148, 163, 184, 0.14);
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --muted-dark: #64748b;
+  --font: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --grad-main: linear-gradient(135deg, #00f2fe 0%, #7000ff 100%);
+  --grad-dollar: linear-gradient(135deg, #00f5a0 0%, #00b4d8 100%);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+  background-image: radial-gradient(700px 500px at 90% -10%, rgba(112, 0, 255, 0.18), transparent 60%),
+                    radial-gradient(600px 450px at 0% 15%, rgba(0, 242, 254, 0.12), transparent 60%);
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, select, textarea { font-family: inherit; font-size: 13.5px; color: var(--text); }
+::placeholder { color: var(--muted-dark); }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 99px; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.hidden { display: none !important; }
+
+/* ==================== LOGIN SCREEN ==================== */
+#loginOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: radial-gradient(circle at center, #0e1730 0%, #060913 85%);
+  transition: opacity .4s ease, visibility .4s;
+}
+#loginOverlay.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(14, 22, 46, 0.85);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  border-radius: 28px;
+  padding: 40px 32px;
+  text-align: center;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 242, 254, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+.login-logo {
+  width: 68px;
+  height: 68px;
+  border-radius: 22px;
+  background: var(--grad-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #fff;
+  margin: 0 auto 18px;
+  box-shadow: 0 8px 30px var(--primary-glow);
+}
+.login-card h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 6px; }
+.login-card p { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+.login-field {
+  position: relative;
+  margin-bottom: 18px;
+}
+.login-field input {
+  width: 100%;
+  background: rgba(6, 10, 22, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 44px 14px 18px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-align: center;
+  outline: none;
+  transition: all .2s;
+}
+.login-field input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 20px var(--primary-glow);
+}
+.login-field button {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  padding: 6px;
+}
+.login-error {
+  display: none;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+/* ==================== BUTTONS ==================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all .2s;
+  cursor: pointer;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--grad-main); color: #fff; box-shadow: 0 4px 16px var(--primary-glow); }
+.btn-dollar { background: var(--grad-dollar); color: #061c18; font-weight: 800; }
+.btn-glass { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: #fff; }
+.btn-glass:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); }
+.btn-danger { background: rgba(255,51,102,0.15); border: 1px solid rgba(255,51,102,0.35); color: var(--danger); }
+.btn-success { background: rgba(0,245,160,0.15); border: 1px solid rgba(0,245,160,0.35); color: var(--accent); }
+.btn-sm { padding: 6px 12px; font-size: 11.5px; border-radius: 9px; }
+.btn-block { width: 100%; }
+
+/* ==================== APP LAYOUT ==================== */
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+}
+#adminSidebar {
+  width: 260px;
+  background: var(--sidebar-bg);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border);
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 50;
+  overflow-y: auto;
+  transition: transform .3s ease;
+}
+@media (max-width: 900px) {
+  #adminSidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translateX(-105%);
+    box-shadow: 20px 0 60px rgba(0,0,0,0.7);
+  }
+  #adminSidebar.open { transform: translateX(0); }
+}
+.sb-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.sb-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--grad-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: #fff;
+  font-size: 18px;
+}
+.sb-title b { font-size: 15px; font-weight: 800; color: #fff; display: block; }
+.sb-title span { font-size: 10px; color: var(--primary); font-weight: 700; letter-spacing: 0.8px; }
+.nav-group-title {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted-dark);
+  padding: 12px 10px 6px;
+}
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13px;
+  transition: all .2s;
+  margin-bottom: 3px;
+  cursor: pointer;
+}
+.nav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
+.nav-link.active {
+  color: #fff;
+  background: var(--grad-main);
+  box-shadow: 0 4px 18px var(--primary-glow);
+}
+.nav-badge {
+  margin-left: auto;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 99px;
+}
+
+/* Main Content Area */
+.admin-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  backdrop-filter: blur(20px);
+  background: rgba(6, 9, 20, 0.88);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(0, 245, 160, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(0, 245, 160, 0.3);
+}
+.status-pill i { font-size: 7px; animation: pulse 1.6s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.admin-body {
+  padding: 24px;
+  max-width: 1260px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ==================== DASHBOARD KPI CARDS ==================== */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+@media (min-width: 768px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.kpi-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #fff;
+  margin-bottom: 10px;
+}
+.kpi-val { font-size: 24px; font-weight: 900; color: #fff; font-family: var(--mono); }
+.kpi-label { font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+
+/* ==================== DATA CARDS & TABLES ==================== */
+.data-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.card-head h3 { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.card-head h3 i { color: var(--primary); }
+
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(10, 15, 34, 0.6);
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+  transition: all .2s;
+}
+.item-row:hover { border-color: rgba(0, 242, 254, 0.3); background: rgba(18, 28, 56, 0.8); }
+.item-info { flex: 1; min-width: 0; }
+.item-title { font-weight: 700; font-size: 13.5px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-sub { font-size: 11.5px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+
+.status-tag {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.5px;
+}
+.status-tag.pending { background: rgba(255, 215, 0, 0.15); color: var(--gold); border: 1px solid rgba(255, 215, 0, 0.3); }
+.status-tag.completed, .status-tag.delivered, .status-tag.approved { background: rgba(0, 245, 160, 0.15); color: var(--accent); border: 1px solid rgba(0, 245, 160, 0.3); }
+.status-tag.rejected { background: rgba(255, 51, 102, 0.15); color: var(--danger); border: 1px solid rgba(255, 51, 102, 0.3); }
+.status-tag.refunded { background: rgba(255, 140, 0, 0.15); color: #ff9800; border: 1px solid rgba(255, 140, 0, 0.3); }
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-btn { padding: 6px 14px; border-radius: 99px; font-size: 11.5px; font-weight: 700; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--muted); cursor: pointer; transition: all .2s; }
+.filter-btn:hover, .filter-btn.active { background: var(--primary); color: #060913; border-color: var(--primary); }
+.star-gold { color: var(--gold); }
+
+/* Form Fields */
+.form-field { margin-bottom: 14px; }
+.form-field label { display: block; font-size: 11.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+.form-field input, .form-field select, .form-field textarea {
+  width: 100%;
+  background: rgba(6, 10, 22, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 14px;
+  outline: none;
+}
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--primary); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* Modal */
+.admin-modal-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.admin-modal-wrap.open { visibility: visible; }
+.admin-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 6, 16, 0.8);
+  backdrop-filter: blur(8px);
+}
+.admin-modal-box {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #0b1126;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 24px;
+  z-index: 2;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+}
+
+/* Toast */
+#adminToasts {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(92vw, 400px);
+}
+.adm-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(14, 22, 46, 0.95);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  animation: aToastIn .3s ease;
+}
+@keyframes aToastIn { from { opacity: 0; transform: translateY(-10px); } }
+</style>
+</head>
+<body>
+
+<!-- Login Overlay Screen -->
+<div id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo"><i class="fa-solid fa-shield-halved"></i></div>
+    <h1>NEXUS ADMIN PORTAL</h1>
+    <p>Authorized access to Dollar Terminal &amp; Digital Store</p>
+    <div class="login-field">
+      <input id="adminKeyInput" type="password" placeholder="Access Key" autocomplete="off">
+      <button type="button" id="toggleKeyVisibility"><i class="fa-regular fa-eye"></i></button>
+    </div>
+    <div class="login-error" id="loginErrMsg">Invalid Access Key</div>
+    <button class="btn btn-primary btn-block" style="padding:14px;" onclick="verifyAdminKey()">
+      <i class="fa-solid fa-lock-open"></i>Enter Control Panel
+    </button>
+  </div>
+</div>
+
+<!-- Admin App Layout -->
+<div class="admin-layout" id="adminApp">
+  <!-- Sidebar Navigation -->
+  <aside id="adminSidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">N</div>
+      <div class="sb-title">
+        <b>NEXUS DIGITAL</b>
+        <span>ADMIN CONSOLE</span>
+      </div>
+    </div>
+
+    <div class="nav-group-title">Main Desk</div>
+    <div class="nav-link active" data-tab="dashboard" onclick="setAdminTab('dashboard')">
+      <i class="fa-solid fa-chart-pie"></i>Dashboard
+    </div>
+    <div class="nav-link" data-tab="exchanges" onclick="setAdminTab('exchanges')">
+      <i class="fa-solid fa-arrow-right-arrow-left"></i>Dollar Exchanges
+      <span class="nav-badge hidden" id="exchangesCountBadge">0</span>
+    </div>
+    <div class="nav-link" data-tab="addFunds" onclick="setAdminTab('addFunds')">
+      <i class="fa-solid fa-wallet"></i>Add Funds Requests
+      <span class="nav-badge hidden" id="addFundsCountBadge">0</span>
+    </div>
+
+    <div class="nav-group-title">Store Management</div>
+    <div class="nav-link" data-tab="orders" onclick="setAdminTab('orders')">
+      <i class="fa-solid fa-receipt"></i>Product Orders
+      <span class="nav-badge hidden" id="ordersCountBadge">0</span>
+    </div>
+    <div class="nav-link" data-tab="products" onclick="setAdminTab('products')">
+      <i class="fa-solid fa-gamepad"></i>Games &amp; Products
+    </div>
+    <div class="nav-link" data-tab="dollarRates" onclick="setAdminTab('dollarRates')">
+      <i class="fa-solid fa-dollar-sign"></i>Dollar Rates &amp; Reserves
+    </div>
+    <div class="nav-link" data-tab="reviews" onclick="setAdminTab('reviews')">
+      <i class="fa-solid fa-star"></i>Customer Reviews
+      <span class="nav-badge hidden" id="reviewsCountBadge">0</span>
+    </div>
+    <div class="nav-link" data-tab="promotions" onclick="setAdminTab('promotions')">
+      <i class="fa-solid fa-tags"></i>Banners &amp; Coupons
+    </div>
+    <div class="nav-link" data-tab="users" onclick="setAdminTab('users')">
+      <i class="fa-solid fa-users"></i>Users &amp; Balances
+    </div>
+
+    <div class="nav-group-title">Configuration</div>
+    <div class="nav-link" data-tab="settings" onclick="setAdminTab('settings')">
+      <i class="fa-solid fa-gear"></i>Gateways &amp; Settings
+    </div>
+    <div class="nav-link" onclick="seedDemoCatalog()">
+      <i class="fa-solid fa-seedling"></i>Seed Demo Catalog
+    </div>
+
+    <div style="margin-top:auto; padding-top:14px; border-top:1px solid var(--border);">
+      <button class="btn btn-danger btn-block btn-sm" onclick="adminLogout()">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>Log Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main View Area -->
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div class="topbar-left">
+        <button class="btn btn-glass btn-sm" id="sidebarToggle" onclick="$('#adminSidebar').classList.toggle('open')">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <h2 id="adminHeaderTitle" style="font-size:17px; font-weight:800;">Dashboard</h2>
+      </div>
+      <div class="topbar-right">
+        <div class="status-pill"><i class="fa-solid fa-circle"></i>RTDB Connected</div>
+        <a class="btn btn-glass btn-sm" href="/" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i>Storefront</a>
+      </div>
+    </div>
+
+    <div class="admin-body" id="adminContent">
+      <!-- Injected dynamically -->
+    </div>
+  </main>
+</div>
+
+<!-- Modal Box -->
+<div class="admin-modal-wrap" id="adminModalWrap">
+  <div class="admin-modal-backdrop" onclick="closeAdminModal()"></div>
+  <div class="admin-modal-box" id="adminModalContent"></div>
+</div>
+
+<div id="adminToasts" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ==================== ADMIN CORE JAVASCRIPT ==================== */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => '৳' + Number(n || 0).toLocaleString('en-IN');
+const fmtUSD = n => '$' + Number(n || 0).toFixed(2);
+const fmtDate = ts => ts ? new Date(ts).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+
+function admToast(msg, type = 'ok') {
+  const box = $('#adminToasts');
+  const el = document.createElement('div');
+  el.className = 'adm-toast';
+  el.innerHTML = `<i class="fa-solid fa-check-circle" style="color:var(--accent)"></i><span>${esc(msg)}</span>`;
+  box.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 300);
+  }, 2600);
+}
+
+// Local Storage Session
+const ADMIN_SESS_KEY = 'nx_admin_session';
+function checkAuth() {
+  const sess = localStorage.getItem(ADMIN_SESS_KEY);
+  if (sess === 'SIAMVIP_OK') {
+    $('#loginOverlay').classList.add('gone');
+  }
+}
+
+function verifyAdminKey() {
+  const key = $('#adminKeyInput').value.trim();
+  if (key === 'SIAMVIP') {
+    localStorage.setItem(ADMIN_SESS_KEY, 'SIAMVIP_OK');
+    $('#loginOverlay').classList.add('gone');
+    admToast('Admin authenticated successfully');
+  } else {
+    $('#loginErrMsg').style.display = 'block';
+    $('#loginErrMsg').textContent = 'Invalid access key. Please try again.';
+  }
+}
+
+function adminLogout() {
+  localStorage.removeItem(ADMIN_SESS_KEY);
+  location.reload();
+}
+
+$('#toggleKeyVisibility').onclick = () => {
+  const inp = $('#adminKeyInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+};
+
+$('#adminKeyInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') verifyAdminKey();
+});
+
+/* ==================== FIREBASE CONFIG ==================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyD-Ijy5bF1RFpwCbEiZEHyFPdMOjeEbAE4",
+  authDomain: "gen-lang-client-0247496189.firebaseapp.com",
+  databaseURL: "https://gen-lang-client-0247496189-default-rtdb.firebaseio.com",
+  projectId: "gen-lang-client-0247496189",
+  storageBucket: "gen-lang-client-0247496189.firebasestorage.app",
+  messagingSenderId: "75421939355",
+  appId: "1:75421939355:web:cebfd39dcf1f20c727f83e"
+};
+
+let DB = null;
+let auth = null;
+try {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    DB = firebase.database();
+    if (typeof firebase.auth === 'function') {
+      auth = firebase.auth();
+    }
+  }
+} catch (e) {
+  console.warn('Firebase error in admin:', e);
+}
+
+/* ==================== DATA CACHE ==================== */
+const AdminState = {
+  currentTab: 'dashboard',
+  dollarRequests: {},
+  addFunds: {},
+  deposits: {},
+  orders: {},
+  products: {},
+  reviews: {},
+  users: {},
+  settings: {}
+};
+
+function getCombinedAddFundsList() {
+  const map = {};
+  // First load legacy deposits
+  Object.entries(AdminState.deposits || {}).forEach(([id, d]) => {
+    map[id] = { id, sourceNode: 'deposits', ...d };
+  });
+  // Overlay/append addFunds
+  Object.entries(AdminState.addFunds || {}).forEach(([id, d]) => {
+    map[id] = { id, sourceNode: 'addFunds', ...d };
+  });
+  return Object.values(map).sort((a, b) => (Number(b.ts || 0) - Number(a.ts || 0)));
+}
+
+function openAdminModal(html) {
+  $('#adminModalContent').innerHTML = html;
+  $('#adminModalWrap').classList.add('open');
+}
+function closeAdminModal() {
+  $('#adminModalWrap').classList.remove('open');
+}
+
+/* ==================== TAB 1: DASHBOARD ==================== */
+function renderDashboard() {
+  const ex = Object.values(AdminState.dollarRequests);
+  const addFundsList = getCombinedAddFundsList();
+  const ord = Object.values(AdminState.orders);
+  const usr = Object.values(AdminState.users);
+  const rev = Object.values(AdminState.reviews || {});
+
+  const pendingEx = ex.filter(x => x.status === 'PENDING').length;
+  const pendingFunds = addFundsList.filter(x => x.status === 'PENDING').length;
+  const pendingOrders = ord.filter(x => x.status === 'PENDING').length;
+  const pendingReviews = rev.filter(x => x.status === 'PENDING').length;
+  const totalVolumeUSD = ex.reduce((sum, x) => sum + (Number(x.usdAmount) || 0), 0);
+  const totalBDT = ord.reduce((sum, x) => sum + (Number(x.price || x.total) || 0), 0);
+
+  // Update badges in sidebar
+  const exBadge = $('#exchangesCountBadge');
+  if (exBadge) {
+    exBadge.textContent = pendingEx;
+    exBadge.classList.toggle('hidden', pendingEx === 0);
+  }
+
+  const fundsBadge = $('#addFundsCountBadge');
+  if (fundsBadge) {
+    fundsBadge.textContent = pendingFunds;
+    fundsBadge.classList.toggle('hidden', pendingFunds === 0);
+  }
+
+  const ordersBadge = $('#ordersCountBadge');
+  if (ordersBadge) {
+    ordersBadge.textContent = pendingOrders;
+    ordersBadge.classList.toggle('hidden', pendingOrders === 0);
+  }
+
+  const reviewsBadge = $('#reviewsCountBadge');
+  if (reviewsBadge) {
+    reviewsBadge.textContent = pendingReviews;
+    reviewsBadge.classList.toggle('hidden', pendingReviews === 0);
+  }
+
+  return `
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:var(--grad-dollar); color:#061e1b;"><i class="fa-solid fa-dollar-sign"></i></div>
+        <div class="kpi-val">${fmtUSD(totalVolumeUSD)}</div>
+        <div class="kpi-label">Dollar Volume Handled</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:var(--grad-main);"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+        <div class="kpi-val">${pendingEx}</div>
+        <div class="kpi-label">Pending Dollar Exchanges</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:linear-gradient(135deg, #ffd700, #ff8c00); color:#201400;"><i class="fa-solid fa-wallet"></i></div>
+        <div class="kpi-val">${pendingFunds}</div>
+        <div class="kpi-label">Pending Add Funds</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:linear-gradient(135deg, #ff007f, #7928ca);"><i class="fa-solid fa-bag-shopping"></i></div>
+        <div class="kpi-val">${ord.length}</div>
+        <div class="kpi-label">Total Store Orders</div>
+      </div>
+    </div>
+
+    <div class="data-card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-bolt"></i>Recent Dollar Exchange Requests</h3>
+        <button class="btn btn-glass btn-sm" onclick="setAdminTab('exchanges')">View All</button>
+      </div>
+      ${renderExchangeRows(ex.slice(-5).reverse())}
+    </div>
+
+    <div class="data-card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-plus-circle"></i>Recent Add Funds Requests</h3>
+        <button class="btn btn-glass btn-sm" onclick="setAdminTab('addFunds')">View All</button>
+      </div>
+      ${renderAddFundsRows(addFundsList.slice(0, 5))}
+    </div>
+  `;
+}
+
+/* ==================== TAB 2: DOLLAR EXCHANGES ==================== */
+function renderExchangesTab() {
+  const list = Object.entries(AdminState.dollarRequests).map(([id, req]) => ({ id, ...req })).reverse();
+  return `
+    <div class="data-card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-arrow-right-arrow-left"></i>All Dollar Buy &amp; Sell Requests</h3>
+      </div>
+      ${renderExchangeRows(list)}
+    </div>
+  `;
+}
+
+function renderExchangeRows(list) {
+  if (!list.length) return `<p style="color:var(--muted); font-size:13px;">No exchange requests found.</p>`;
+  return list.map(item => `
+    <div class="item-row">
+      <div class="item-info">
+        <div class="item-title">
+          <span style="color:${item.type === 'BUY' ? 'var(--accent)' : 'var(--primary)'}; font-weight:800;">[${item.type}]</span>
+          ${fmtUSD(item.usdAmount)} ${esc(item.currency || 'USD')} ↔ ${fmt(item.totalBDT)}
+        </div>
+        <div class="item-sub">
+          <span>Target/Number: <b>${esc(item.payoutTarget || item.senderPhone || '—')}</b></span>
+          <span>Method: <b>${esc(item.paymentMethod || 'Manual')}</b></span>
+          <span>Date: <b>${fmtDate(item.ts)}</b></span>
+        </div>
+      </div>
+      <span class="status-tag ${(item.status || 'pending').toLowerCase()}">${esc(item.status || 'PENDING')}</span>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-success btn-sm" onclick="approveExchange('${esc(item.id)}')">
+          <i class="fa-solid fa-check"></i>
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="rejectExchange('${esc(item.id)}')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function approveExchange(id) {
+  const tx = prompt('Enter payment transaction hash / proof note for customer:');
+  if (tx === null) return;
+  DB.ref('dollarRequests/' + id).update({
+    status: 'COMPLETED',
+    settlementTx: tx || 'Completed by Admin',
+    settledAt: Date.now()
+  });
+  admToast('Dollar exchange marked completed!');
+}
+
+function rejectExchange(id) {
+  const reason = prompt('Enter rejection reason:');
+  if (reason === null) return;
+  DB.ref('dollarRequests/' + id).update({
+    status: 'REJECTED',
+    rejectReason: reason || 'Information mismatch'
+  });
+  admToast('Exchange request rejected', 'err');
+}
+
+/* ==================== TAB 3: ADD FUNDS MANAGEMENT ==================== */
+function renderAddFundsTab() {
+  const list = getCombinedAddFundsList();
+  const pendingCount = list.filter(x => x.status === 'PENDING').length;
+
+  return `
+    <div class="data-card">
+      <div class="card-head">
+        <div>
+          <h3><i class="fa-solid fa-wallet"></i>Add Funds &amp; Payment Gateway Queue</h3>
+          <span style="font-size:12px; color:var(--muted);">${list.length} total transactions (${pendingCount} pending verification)</span>
+        </div>
+      </div>
+      ${renderAddFundsRows(list)}
+    </div>
+  `;
+}
+
+function renderAddFundsRows(list) {
+  if (!list.length) return `<p style="color:var(--muted); font-size:13px; padding:16px 0;">No Add Funds requests found.</p>`;
+  return list.map(item => {
+    const isGateway = item.type === 'GATEWAY_API' || item.gatewayVerified || (item.mode && item.mode.includes('GATEWAY'));
+    const method = (item.method || 'bKash').toLowerCase();
+    const methodBadge = method.includes('nagad') 
+      ? '<span style="background:rgba(246,146,30,0.18); color:#f6921e; border:1px solid rgba(246,146,30,0.4); padding:2px 8px; border-radius:6px; font-weight:800; font-size:11px;"><i class="fa-solid fa-bolt"></i> Nagad</span>'
+      : method.includes('rocket')
+      ? '<span style="background:rgba(140,52,148,0.18); color:#d946ef; border:1px solid rgba(140,52,148,0.4); padding:2px 8px; border-radius:6px; font-weight:800; font-size:11px;">Rocket</span>'
+      : method.includes('binance')
+      ? '<span style="background:rgba(243,186,47,0.18); color:#f3ba2f; border:1px solid rgba(243,186,47,0.4); padding:2px 8px; border-radius:6px; font-weight:800; font-size:11px;">Binance Pay</span>'
+      : '<span style="background:rgba(226,19,110,0.18); color:#ff3388; border:1px solid rgba(226,19,110,0.4); padding:2px 8px; border-radius:6px; font-weight:800; font-size:11px;"><i class="fa-solid fa-bolt"></i> bKash</span>';
+
+    const modeBadge = isGateway
+      ? '<span style="background:rgba(0,245,160,0.15); color:var(--accent); font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; margin-left:6px;"><i class="fa-solid fa-robot"></i> AUTO GATEWAY</span>'
+      : '<span style="background:rgba(255,215,0,0.15); color:var(--gold); font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; margin-left:6px;"><i class="fa-solid fa-hand-holding-dollar"></i> MANUAL SEND MONEY</span>';
+
+    const sourceNode = item.sourceNode || 'deposits';
+
+    return `
+      <div class="item-row">
+        <div class="item-info">
+          <div class="item-title" style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
+            <b style="color:var(--gold); font-size:15px;">+${Number(item.coins || item.amount || 0)} Coins</b>
+            <span style="color:var(--muted); font-size:12px;">(৳${Number(item.amount || 0)} BDT)</span>
+            ${methodBadge}
+            ${modeBadge}
+          </div>
+          <div class="item-sub" style="margin-top:4px;">
+            <span>Customer: <b>${esc(item.userName || 'Customer')} (${esc(item.userPhone || '—')})</b></span>
+            <span>TrxID: <b style="color:var(--accent); font-family:var(--mono);">${esc(item.trxId || '—')}</b></span>
+            <span>Date: <b>${fmtDate(item.ts || item.createdAt)}</b></span>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="status-tag ${(item.status || 'pending').toLowerCase()}">${esc(item.status || 'PENDING')}</span>
+          ${item.status === 'PENDING' ? `
+            <button class="btn btn-success btn-sm" onclick="approveAddFunds('${esc(item.id)}', '${esc(item.userId)}', ${Number(item.coins || item.amount || 0)}, '${sourceNode}')">
+              <i class="fa-solid fa-check"></i> Credit Coins
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="rejectAddFunds('${esc(item.id)}', '${sourceNode}')">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function approveAddFunds(id, userId, amount, sourceNode = 'deposits') {
+  if (!confirm(`Credit ${amount} Coins to customer?`)) return;
+
+  // Credit user's wallet atomically
+  if (userId) {
+    DB.ref('customers/' + userId + '/walletCoins').transaction(cur => (Number(cur || 0) + amount));
+    // Ledger transaction
+    DB.ref('transactions').push({
+      userId: userId,
+      amount: amount,
+      reason: 'Add Funds Approved by Admin',
+      ts: Date.now()
+    });
+  }
+
+  // Update target node
+  const updates = { status: 'COMPLETED', approvedAt: Date.now() };
+  DB.ref(sourceNode + '/' + id).update(updates);
+  if (sourceNode === 'deposits') {
+    DB.ref('addFunds/' + id).update(updates).catch(() => {});
+  } else {
+    DB.ref('deposits/' + id).update(updates).catch(() => {});
+  }
+
+  admToast(`Credited +${amount} Coins successfully!`);
+}
+
+function rejectAddFunds(id, sourceNode = 'deposits') {
+  const reason = prompt('Rejection reason (e.g. Invalid TrxID):') || 'Transaction verification failed';
+  const updates = { status: 'REJECTED', rejectReason: reason };
+  DB.ref(sourceNode + '/' + id).update(updates);
+  if (sourceNode === 'deposits') {
+    DB.ref('addFunds/' + id).update(updates).catch(() => {});
+  } else {
+    DB.ref('deposits/' + id).update(updates).catch(() => {});
+  }
+  admToast('Add Funds request marked rejected', 'err');
+}
+
+// Backwards compatibility alias
+const renderDepositsTab = renderAddFundsTab;
+const renderDepositRows = renderAddFundsRows;
+const approveDeposit = approveAddFunds;
+const rejectDeposit = rejectAddFunds;
+
+/* ==================== TAB 4: ORDERS & FULFILLMENT ==================== */
+let ordersFilter = 'ALL';
+
+function renderOrdersTab() {
+  const ordList = Object.entries(AdminState.orders || {}).map(([id, o]) => ({ id, ...o })).reverse();
+  const filtered = ordersFilter === 'ALL' ? ordList : ordList.filter(o => (o.status || 'PENDING').toUpperCase() === ordersFilter);
+
+  return `
+    <div class="data-card">
+      <div class="card-head">
+        <div>
+          <h3><i class="fa-solid fa-receipt"></i>Customer Store &amp; Game Orders</h3>
+          <span style="font-size:12px; color:var(--muted);">${ordList.length} Total Orders</span>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <button class="filter-btn ${ordersFilter === 'ALL' ? 'active' : ''}" onclick="setOrdersFilter('ALL')">All (${ordList.length})</button>
+        <button class="filter-btn ${ordersFilter === 'PENDING' ? 'active' : ''}" onclick="setOrdersFilter('PENDING')">Pending (${ordList.filter(o => (o.status || 'PENDING') === 'PENDING').length})</button>
+        <button class="filter-btn ${ordersFilter === 'DELIVERED' ? 'active' : ''}" onclick="setOrdersFilter('DELIVERED')">Delivered (${ordList.filter(o => o.status === 'DELIVERED').length})</button>
+        <button class="filter-btn ${ordersFilter === 'REFUNDED' ? 'active' : ''}" onclick="setOrdersFilter('REFUNDED')">Refunded (${ordList.filter(o => o.status === 'REFUNDED').length})</button>
+      </div>
+
+      ${filtered.length ? filtered.map(item => {
+        const isPending = (item.status || 'PENDING') === 'PENDING';
+        const isDelivered = item.status === 'DELIVERED';
+        const isRefunded = item.status === 'REFUNDED';
+        const coinsCost = Number(item.coins || item.price || 0);
+
+        return `
+          <div class="item-row" style="align-items:flex-start; padding:16px;">
+            <div class="item-info">
+              <div class="item-title" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <b style="font-size:15px; color:#fff;">${esc(item.productName || item.itemName || 'Marketplace Item')}</b>
+                <span style="color:var(--gold); font-size:13px; font-weight:800;">(🪙 ${coinsCost} Coins / ৳${item.price || coinsCost})</span>
+                <span class="status-tag ${(item.status || 'pending').toLowerCase()}">${esc(item.status || 'PENDING')}</span>
+              </div>
+              <div class="item-sub" style="margin-top:6px; line-height:1.6;">
+                <span>Customer: <b>${esc(item.userName || 'Customer')} (${esc(item.userPhone || '—')})</b></span>
+                ${item.playerUid ? `<span>Player UID: <b style="color:var(--accent); font-family:var(--mono);">${esc(item.playerUid)}</b></span>` : ''}
+                ${item.deliveryData ? `<div style="background:rgba(0,245,160,0.1); border:1px solid rgba(0,245,160,0.3); border-radius:8px; padding:6px 10px; margin-top:4px; font-size:11.5px; color:var(--accent);">Delivered: <b>${esc(item.deliveryData)}</b></div>` : ''}
+                ${item.refundReason ? `<div style="background:rgba(255,140,0,0.1); border:1px solid rgba(255,140,0,0.3); border-radius:8px; padding:6px 10px; margin-top:4px; font-size:11.5px; color:#ff9800;">Refund Reason: <b>${esc(item.refundReason)}</b></div>` : ''}
+                <span>Date: <b>${fmtDate(item.ts || item.createdAt)}</b></span>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
+              ${isPending ? `
+                <button class="btn btn-success btn-sm" onclick="openOrderFulfillModal('${esc(item.id)}')">
+                  <i class="fa-solid fa-paper-plane"></i> Fulfill / Deliver
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="refundOrderToWallet('${esc(item.id)}', '${esc(item.userId)}', ${coinsCost})">
+                  <i class="fa-solid fa-rotate-left"></i> Refund Coins
+                </button>
+              ` : isDelivered ? `
+                <button class="btn btn-glass btn-sm" onclick="openOrderFulfillModal('${esc(item.id)}')">
+                  <i class="fa-solid fa-pen"></i> Edit Voucher
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="refundOrderToWallet('${esc(item.id)}', '${esc(item.userId)}', ${coinsCost})">
+                  <i class="fa-solid fa-rotate-left"></i> Refund Coins
+                </button>
+              ` : `
+                <span style="font-size:11px; color:#ff9800; font-weight:700;">Refunded</span>
+              `}
+              <button class="btn btn-glass btn-sm" style="color:var(--danger);" onclick="deleteOrder('${esc(item.id)}')">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('') : '<p style="color:var(--muted); font-size:13px; padding:16px 0;">No orders found in this category.</p>'}
+    </div>
+  `;
+}
+
+function setOrdersFilter(f) {
+  ordersFilter = f;
+  setAdminTab('orders');
+}
+
+function openOrderFulfillModal(orderId) {
+  const o = AdminState.orders[orderId] || {};
+  openAdminModal(`
+    <h3 style="margin-bottom:14px;"><i class="fa-solid fa-paper-plane" style="color:var(--accent); margin-right:8px;"></i>Fulfill Order Voucher / Code</h3>
+    <p style="font-size:12.5px; color:var(--muted); margin-bottom:14px;">
+      Item: <b>${esc(o.productName || o.itemName || 'Store Item')}</b> for <b>${esc(o.userName || 'Customer')}</b>
+    </p>
+    <div class="form-field">
+      <label>Delivery Voucher / Account Credentials / Top-Up Reference</label>
+      <textarea id="fulfillCodeInput" rows="4" placeholder="e.g. Free Fire Diamonds credited to UID 298192019 via Garena Partner. Trx: GR982910">${esc(o.deliveryData || '')}</textarea>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+      <button class="btn btn-glass" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn btn-success" onclick="fulfillOrder('${orderId}')"><i class="fa-solid fa-check"></i> Mark Delivered</button>
+    </div>
+  `);
+}
+
+function fulfillOrder(orderId) {
+  const code = $('#fulfillCodeInput').value.trim();
+  if (!code) return alert('Please enter delivery voucher or confirmation text');
+
+  DB.ref('orders/' + orderId).update({
+    status: 'DELIVERED',
+    deliveryData: code,
+    deliveredAt: Date.now()
+  }).then(() => {
+    closeAdminModal();
+    admToast('Order marked delivered with delivery details!');
+  });
+}
+
+function refundOrderToWallet(orderId, userId, coins) {
+  if (!confirm(`Refund ${coins} Coins back to customer's prepaid wallet?`)) return;
+  const reason = prompt('Refund reason note:') || 'Customer requested refund / Stock unavailable';
+
+  if (userId && coins > 0) {
+    DB.ref('customers/' + userId + '/walletCoins').transaction(cur => (Number(cur || 0) + coins));
+    DB.ref('transactions').push({
+      userId: userId,
+      amount: coins,
+      reason: `Order Refunded: #${orderId} (${reason})`,
+      ts: Date.now()
+    });
+  }
+
+  DB.ref('orders/' + orderId).update({
+    status: 'REFUNDED',
+    refundReason: reason,
+    refundedAt: Date.now()
+  }).then(() => {
+    admToast(`Refunded +${coins} Coins to customer wallet!`);
+  });
+}
+
+function deleteOrder(orderId) {
+  if (confirm('Permanently delete this order record?')) {
+    DB.ref('orders/' + orderId).remove().then(() => admToast('Order deleted'));
+  }
+}
+
+/* ==================== TAB 5: PRODUCTS & GAME TOP-UPS (CRUD) ==================== */
+let productCategoryFilter = 'all';
+
+function renderProductsTab() {
+  const prods = Object.entries(AdminState.products || {}).map(([id, p]) => ({ id, ...p }));
+  const filtered = productCategoryFilter === 'all' ? prods : prods.filter(p => p.category === productCategoryFilter);
+
+  return `
+    <div class="data-card">
+      <div class="card-head">
+        <div>
+          <h3><i class="fa-solid fa-gamepad"></i>Catalog Products &amp; Game Top-Ups</h3>
+          <span style="font-size:12px; color:var(--muted);">${prods.length} total products available</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openProductEditorModal('')">
+          <i class="fa-solid fa-plus"></i> Add New Product
+        </button>
+      </div>
+
+      <!-- Category Filter Chips -->
+      <div class="filter-bar">
+        <button class="filter-btn ${productCategoryFilter === 'all' ? 'active' : ''}" onclick="setProdFilter('all')">All (${prods.length})</button>
+        <button class="filter-btn ${productCategoryFilter === 'games' ? 'active' : ''}" onclick="setProdFilter('games')">Game Top-Up</button>
+        <button class="filter-btn ${productCategoryFilter === 'subscriptions' ? 'active' : ''}" onclick="setProdFilter('subscriptions')">Subscriptions</button>
+        <button class="filter-btn ${productCategoryFilter === 'ai-tools' ? 'active' : ''}" onclick="setProdFilter('ai-tools')">AI &amp; Software</button>
+        <button class="filter-btn ${productCategoryFilter === 'giftcards' ? 'active' : ''}" onclick="setProdFilter('giftcards')">Gift Cards</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr; gap:10px;">
+        ${filtered.map(p => {
+          const inStock = p.inStock !== false && p.stock !== false;
+          return `
+            <div class="item-row" style="align-items:center; padding:12px 16px;">
+              <img src="${esc(p.image || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=120&q=80')}" style="width:48px; height:48px; border-radius:12px; object-fit:cover; border:1px solid var(--border);" onerror="this.src='https://images.unsplash.com/photo-1542751371-adc38448a05e?w=120&q=80'">
+              <div class="item-info">
+                <div class="item-title" style="display:flex; align-items:center; gap:8px;">
+                  <b>${esc(p.name)}</b>
+                  <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:${inStock ? 'rgba(0,245,160,0.15)' : 'rgba(255,51,102,0.15)'}; color:${inStock ? 'var(--accent)' : 'var(--danger)'};">
+                    ${inStock ? 'IN STOCK' : 'OUT OF STOCK'}
+                  </span>
+                </div>
+                <div class="item-sub">
+                  <span>Category: <b>${esc(p.category || 'games')}</b></span>
+                  <span>Price: <b style="color:var(--gold);">৳${p.price || 99}</b> (🪙 ${p.coins || p.price || 99} Coins)</span>
+                  <span>Delivery: <b>${esc(p.deliveryType || 'Instant UID')}</b></span>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <button class="btn btn-glass btn-sm" title="Toggle Stock" onclick="toggleProductStock('${esc(p.id)}')">
+                  <i class="fa-solid fa-boxes-stacked" style="color:${inStock ? 'var(--accent)' : 'var(--danger)'};"></i>
+                </button>
+                <button class="btn btn-glass btn-sm" onclick="openProductEditorModal('${esc(p.id)}')">
+                  <i class="fa-solid fa-pen"></i> Edit
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteProduct('${esc(p.id)}')">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('') || '<p style="color:var(--muted); padding:16px 0;">No products found in this category.</p>'}
+      </div>
+    </div>
+  `;
+}
+
+function setProdFilter(cat) {
+  productCategoryFilter = cat;
+  setAdminTab('products');
+}
+
+function toggleProductStock(id) {
+  const p = AdminState.products[id];
+  if (!p) return;
+  const current = p.inStock !== false && p.stock !== false;
+  DB.ref('products/' + id).update({ inStock: !current, stock: !current }).then(() => {
+    admToast(!current ? 'Product marked In Stock!' : 'Product marked Out of Stock', !current ? 'ok' : 'err');
+  });
+}
+
+function openProductEditorModal(id) {
+  const p = id ? (AdminState.products[id] || {}) : {};
+  openAdminModal(`
+    <h3 style="margin-bottom:16px;"><i class="fa-solid fa-gamepad" style="color:var(--primary); margin-right:8px;"></i>${id ? 'Edit Product' : 'Add New Product'}</h3>
+    <div class="form-field">
+      <label>Product Name</label>
+      <input id="epName" value="${esc(p.name || '')}" placeholder="e.g. Free Fire 1000 Diamonds (UID)">
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Category</label>
+        <select id="epCat">
+          <option value="games" ${p.category === 'games' ? 'selected' : ''}>Game Top-Up (Free Fire / PUBG)</option>
+          <option value="subscriptions" ${p.category === 'subscriptions' ? 'selected' : ''}>Subscriptions &amp; Streaming</option>
+          <option value="ai-tools" ${p.category === 'ai-tools' ? 'selected' : ''}>AI Tools &amp; Software</option>
+          <option value="giftcards" ${p.category === 'giftcards' ? 'selected' : ''}>Gift Cards &amp; Vouchers</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Delivery Method</label>
+        <select id="epDeliveryType">
+          <option value="Instant Player UID" ${p.deliveryType === 'Instant Player UID' ? 'selected' : ''}>Instant Player UID</option>
+          <option value="Voucher Code" ${p.deliveryType === 'Voucher Code' ? 'selected' : ''}>Voucher / Gift Card Code</option>
+          <option value="Account Login" ${p.deliveryType === 'Account Login' ? 'selected' : ''}>Account Credentials</option>
+          <option value="Direct Link" ${p.deliveryType === 'Direct Link' ? 'selected' : ''}>Direct Upgrade Link</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Price (৳ BDT)</label>
+        <input id="epPrice" type="number" value="${p.price || 99}">
+      </div>
+      <div class="form-field">
+        <label>Coins Cost</label>
+        <input id="epCoins" type="number" value="${p.coins || p.price || 99}">
+      </div>
+    </div>
+    <div class="form-field">
+      <label>Product Image URL</label>
+      <input id="epImg" value="${esc(p.image || '')}" placeholder="https://images.unsplash.com/photo-...">
+      <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80'">Free Fire Preset</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&q=80'">PUBG Preset</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400&q=80'">Canva Preset</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='https://images.unsplash.com/photo-1677442136019-21780efad99a?w=400&q=80'">ChatGPT Preset</button>
+      </div>
+    </div>
+    <div class="form-field">
+      <label>Description &amp; Feature Highlights</label>
+      <textarea id="epDesc" rows="3" placeholder="Enter product delivery details, guarantees, instructions...">${esc(p.desc || '')}</textarea>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+      <button class="btn btn-glass" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct('${id}')"><i class="fa-solid fa-save"></i> Save Product</button>
+    </div>
+  `);
+}
+
+function saveProduct(id) {
+  const name = $('#epName').value.trim();
+  const price = Number($('#epPrice').value) || 0;
+  const coins = Number($('#epCoins').value) || price;
+  if (!name) return alert('Name is required');
+
+  const prod = {
+    name,
+    category: $('#epCat').value,
+    deliveryType: $('#epDeliveryType').value,
+    price,
+    coins,
+    image: $('#epImg').value.trim() || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80',
+    desc: $('#epDesc').value.trim(),
+    inStock: true,
+    visible: true,
+    updatedAt: Date.now()
+  };
+
+  const key = id || ('prod_' + Date.now().toString(36));
+  DB.ref('products/' + key).set(prod).then(() => {
+    closeAdminModal();
+    admToast('Product catalog updated!');
+  });
+}
+
+function deleteProduct(id) {
+  if (confirm('Delete this product permanently?')) {
+    DB.ref('products/' + id).remove().then(() => admToast('Product removed'));
+  }
+}
+
+/* ==================== TAB 6: DOLLAR RATES & RESERVES (CRUD) ==================== */
+function renderDollarRatesTab() {
+  const r = AdminState.settings.dollarRates || {};
+  const currencies = Object.entries(r).map(([id, c]) => ({ id, ...c }));
+
+  return `
+    <div class="data-card">
+      <div class="card-head">
+        <div>
+          <h3><i class="fa-solid fa-dollar-sign"></i>Configure Dollar Rates &amp; Reserves</h3>
+          <span style="font-size:12px; color:var(--muted);">${currencies.length} active currencies configured</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-glass btn-sm" onclick="openAddCurrencyModal()">+ Add Currency</button>
+          <button class="btn btn-primary btn-sm" onclick="saveAllDollarRates()"><i class="fa-solid fa-save"></i> Save All Rates</button>
+        </div>
+      </div>
+      <p style="color:var(--muted); font-size:12.5px; margin-bottom:16px;">
+        Control live buy and sell prices for USDT, Binance Pay, Payeer, PayPal, etc. Changes sync instantly to user exchange terminal.
+      </p>
+
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        ${currencies.map(item => {
+          const id = item.id;
+          return `
+            <div style="background:rgba(10,16,34,0.7); border:1px solid var(--border); border-radius:16px; padding:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <img src="${esc(item.icon || 'https://cryptologos.cc/logos/tether-usdt-logo.png')}" style="width:28px; height:28px; border-radius:50%;" onerror="this.src='https://cryptologos.cc/logos/tether-usdt-logo.png'">
+                  <h4 style="font-size:15px; color:#fff; margin:0;">${esc(item.name || id.toUpperCase())}</h4>
+                  <span style="font-size:10px; font-weight:800; color:var(--accent); background:rgba(0,245,160,0.1); padding:2px 6px; border-radius:4px;">${esc(id.toUpperCase())}</span>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="deleteCurrency('${esc(id)}')"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label>Store Sells (Customer Buys ৳ BDT)</label>
+                  <input id="rate_buy_${id}" type="number" step="0.5" value="${item.buyRate || 125}">
+                </div>
+                <div class="form-field">
+                  <label>Store Buys (Customer Sells ৳ BDT)</label>
+                  <input id="rate_sell_${id}" type="number" step="0.5" value="${item.sellRate || 121}">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-field">
+                  <label>Available Reserve ($ USD)</label>
+                  <input id="rate_res_${id}" type="number" value="${item.reserve || 10000}">
+                </div>
+                <div class="form-field">
+                  <label>Service Fee %</label>
+                  <input id="rate_fee_${id}" type="number" value="${item.fee || 0}">
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function openAddCurrencyModal() {
+  openAdminModal(`
+    <h3 style="margin-bottom:14px;"><i class="fa-solid fa-plus-circle" style="color:var(--primary); margin-right:8px;"></i>Add New Currency / Wallet</h3>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Currency Key ID (e.g. skrill, pm)</label>
+        <input id="ncId" placeholder="e.g. skrill" style="text-transform:lowercase;">
+      </div>
+      <div class="form-field">
+        <label>Display Name</label>
+        <input id="ncName" placeholder="e.g. Skrill USD">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Buy Rate (৳)</label>
+        <input id="ncBuyRate" type="number" step="0.5" value="126.0">
+      </div>
+      <div class="form-field">
+        <label>Sell Rate (৳)</label>
+        <input id="ncSellRate" type="number" step="0.5" value="121.0">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Reserve ($)</label>
+        <input id="ncReserve" type="number" value="5000">
+      </div>
+      <div class="form-field">
+        <label>Icon URL</label>
+        <input id="ncIcon" placeholder="https://...">
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+      <button class="btn btn-glass" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewCurrency()">Add Currency</button>
+    </div>
+  `);
+}
+
+function saveNewCurrency() {
+  const id = $('#ncId').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const name = $('#ncName').value.trim();
+  if (!id || !name) return alert('ID and Name are required');
+
+  const cur = {
+    id: id,
+    name: name,
+    buyRate: Number($('#ncBuyRate').value) || 125,
+    sellRate: Number($('#ncSellRate').value) || 121,
+    reserve: Number($('#ncReserve').value) || 5000,
+    fee: 0,
+    icon: $('#ncIcon').value.trim() || 'https://cryptologos.cc/logos/tether-usdt-logo.png'
+  };
+
+  DB.ref('settings/dollarRates/' + id).set(cur).then(() => {
+    closeAdminModal();
+    admToast('Currency added!');
+  });
+}
+
+function deleteCurrency(id) {
+  if (confirm(`Delete ${id.toUpperCase()} from exchange rates?`)) {
+    DB.ref('settings/dollarRates/' + id).remove().then(() => admToast('Currency removed'));
+  }
+}
+
+function saveAllDollarRates() {
+  const r = AdminState.settings.dollarRates || {};
+  const updates = {};
+  Object.keys(r).forEach(id => {
+    updates[id + '/buyRate'] = Number($('#rate_buy_' + id)?.value) || r[id].buyRate || 125;
+    updates[id + '/sellRate'] = Number($('#rate_sell_' + id)?.value) || r[id].sellRate || 121;
+    updates[id + '/reserve'] = Number($('#rate_res_' + id)?.value) || r[id].reserve || 10000;
+    updates[id + '/fee'] = Number($('#rate_fee_' + id)?.value) || 0;
+  });
+
+  DB.ref('settings/dollarRates').update(updates).then(() => {
+    admToast('All dollar exchange rates saved!');
+  });
+}
+
+/* ==================== TAB 7: CUSTOMER REVIEWS (CRUD) ==================== */
+let reviewsFilter = 'ALL';
+
+function renderReviewsTab() {
+  const revList = Object.entries(AdminState.reviews || {}).map(([id, r]) => ({ id, ...r })).reverse();
+  const filtered = reviewsFilter === 'ALL' ? revList : revList.filter(r => (r.status || 'APPROVED').toUpperCase() === reviewsFilter);
+
+  return `
+    <div class="data-card">
+      <div class="card-head">
+        <div>
+          <h3><i class="fa-solid fa-star" style="color:var(--gold);"></i>Customer Reviews &amp; Testimonials</h3>
+          <span style="font-size:12px; color:var(--muted);">${revList.length} total customer reviews</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openReviewEditorModal('')">
+          <i class="fa-solid fa-plus"></i> Add New Review
+        </button>
+      </div>
+
+      <!-- Filter Chips -->
+      <div class="filter-bar">
+        <button class="filter-btn ${reviewsFilter === 'ALL' ? 'active' : ''}" onclick="setReviewsFilter('ALL')">All (${revList.length})</button>
+        <button class="filter-btn ${reviewsFilter === 'APPROVED' ? 'active' : ''}" onclick="setReviewsFilter('APPROVED')">Published / Live (${revList.filter(r => (r.status || 'APPROVED') === 'APPROVED').length})</button>
+        <button class="filter-btn ${reviewsFilter === 'PENDING' ? 'active' : ''}" onclick="setReviewsFilter('PENDING')">Pending (${revList.filter(r => r.status === 'PENDING').length})</button>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        ${filtered.map(item => {
+          const isLive = (item.status || 'APPROVED') === 'APPROVED';
+          const stars = '★'.repeat(Number(item.rating || 5)) + '☆'.repeat(5 - Number(item.rating || 5));
+          return `
+            <div class="item-row" style="align-items:flex-start; padding:16px;">
+              <img src="${esc(item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80')}" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:1px solid var(--border);" onerror="this.src='https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80'">
+              <div class="item-info">
+                <div class="item-title" style="display:flex; align-items:center; gap:8px;">
+                  <b>${esc(item.name || 'Customer')}</b>
+                  <span style="color:var(--gold); font-size:14px; letter-spacing:1px;">${stars}</span>
+                  <span class="status-tag ${isLive ? 'completed' : 'pending'}">${isLive ? 'PUBLISHED' : 'PENDING'}</span>
+                  ${item.verified !== false ? '<span style="font-size:10px; color:var(--accent); font-weight:800;"><i class="fa-solid fa-check-circle"></i> Verified Buyer</span>' : ''}
+                </div>
+                <div class="item-sub" style="margin-top:4px;">
+                  <span>Service: <b style="color:var(--primary);">${esc(item.product || 'Free Fire Diamonds')}</b></span>
+                  <span>Date: <b>${fmtDate(item.ts || item.createdAt)}</b></span>
+                </div>
+                <p style="font-size:13px; color:#e2e8f0; margin-top:8px; line-height:1.5;">"${esc(item.text || item.comment || '')}"</p>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
+                <button class="btn ${isLive ? 'btn-glass' : 'btn-success'} btn-sm" onclick="toggleReviewPublish('${esc(item.id)}')">
+                  <i class="fa-solid ${isLive ? 'fa-eye-slash' : 'fa-check'}"></i> ${isLive ? 'Hide' : 'Publish'}
+                </button>
+                <button class="btn btn-glass btn-sm" onclick="openReviewEditorModal('${esc(item.id)}')">
+                  <i class="fa-solid fa-pen"></i> Edit
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteReview('${esc(item.id)}')">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('') || '<p style="color:var(--muted); padding:16px 0;">No reviews found.</p>'}
+      </div>
+    </div>
+  `;
+}
+
+function setReviewsFilter(f) {
+  reviewsFilter = f;
+  setAdminTab('reviews');
+}
+
+function openReviewEditorModal(id) {
+  const r = id ? (AdminState.reviews[id] || {}) : {};
+  openAdminModal(`
+    <h3 style="margin-bottom:14px;"><i class="fa-solid fa-star" style="color:var(--gold); margin-right:8px;"></i>${id ? 'Edit Review' : 'Add New Customer Review'}</h3>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Customer Name</label>
+        <input id="revName" value="${esc(r.name || '')}" placeholder="e.g. Tanvir Ahmed (Sylhet)">
+      </div>
+      <div class="form-field">
+        <label>Rating (Stars)</label>
+        <select id="revRating">
+          <option value="5" ${r.rating === 5 || !r.rating ? 'selected' : ''}>★★★★★ 5 Stars (Excellent)</option>
+          <option value="4" ${r.rating === 4 ? 'selected' : ''}>★★★★☆ 4 Stars (Good)</option>
+          <option value="3" ${r.rating === 3 ? 'selected' : ''}>★★★☆☆ 3 Stars</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Product / Service Tag</label>
+        <input id="revProduct" value="${esc(r.product || 'Free Fire 610 Diamonds')}" placeholder="e.g. USDT Exchange / PUBG UC">
+      </div>
+      <div class="form-field">
+        <label>Status</label>
+        <select id="revStatus">
+          <option value="APPROVED" ${r.status !== 'PENDING' ? 'selected' : ''}>Approved &amp; Live</option>
+          <option value="PENDING" ${r.status === 'PENDING' ? 'selected' : ''}>Pending Verification</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-field">
+      <label>Customer Avatar Photo URL</label>
+      <input id="revAvatar" value="${esc(r.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80')}">
+    </div>
+    <div class="form-field">
+      <label>Review Comment</label>
+      <textarea id="revText" rows="3" placeholder="Write customer testimonial...">${esc(r.text || r.comment || '')}</textarea>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+      <button class="btn btn-glass" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveReview('${id}')"><i class="fa-solid fa-save"></i> Save Review</button>
+    </div>
+  `);
+}
+
+function saveReview(id) {
+  const name = $('#revName').value.trim();
+  const text = $('#revText').value.trim();
+  if (!name || !text) return alert('Name and review text are required');
+
+  const rev = {
+    name,
+    rating: Number($('#revRating').value) || 5,
+    product: $('#revProduct').value.trim(),
+    status: $('#revStatus').value,
+    avatar: $('#revAvatar').value.trim() || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80',
+    text,
+    verified: true,
+    ts: id ? (AdminState.reviews[id]?.ts || Date.now()) : Date.now()
+  };
+
+  const key = id || ('rev_' + Date.now().toString(36));
+  DB.ref('reviews/' + key).set(rev).then(() => {
+    closeAdminModal();
+    admToast('Review updated and synced live!');
+  });
+}
+
+function toggleReviewPublish(id) {
+  const r = AdminState.reviews[id];
+  if (!r) return;
+  const newStatus = (r.status || 'APPROVED') === 'APPROVED' ? 'PENDING' : 'APPROVED';
+  DB.ref('reviews/' + id).update({ status: newStatus }).then(() => {
+    admToast(newStatus === 'APPROVED' ? 'Review published live!' : 'Review set to pending');
+  });
+}
+
+function deleteReview(id) {
+  if (confirm('Permanently delete this customer review?')) {
+    DB.ref('reviews/' + id).remove().then(() => admToast('Review removed'));
+  }
+}
+
+/* ==================== TAB 8: BANNERS & PROMOTIONS (CRUD) ==================== */
+function renderPromotionsTab() {
+  const s = AdminState.settings || {};
+  const announcement = s.announcement || '⚡ Instant Automated USDT, Payeer & Binance Pay Settlement via bKash/Nagad! Free Fire 115-2000 Diamonds & PUBG UC delivered in seconds.';
+  const coupons = Object.entries(s.coupons || {}).map(([id, c]) => ({ id, ...c }));
+
+  return `
+    <div class="data-card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-bullhorn" style="color:var(--primary);"></i>Store Header Announcement Ticker</h3>
+        <button class="btn btn-primary btn-sm" onclick="saveAnnouncement()"><i class="fa-solid fa-save"></i> Save Ticker</button>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">This message scrolls in the top live announcement bar on the user panel.</p>
+      <div class="form-field">
+        <textarea id="setAnnouncementText" rows="2" style="font-weight:700;">${esc(announcement)}</textarea>
+      </div>
+    </div>
+
+    <div class="data-card">
+      <div class="card-head">
+        <div>
+          <h3><i class="fa-solid fa-tags" style="color:var(--accent);"></i>Discount Coupon Codes</h3>
+          <span style="font-size:12px; color:var(--muted);">${coupons.length} active coupons</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openCouponModal('')">+ Add New Coupon</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        ${coupons.map(c => `
+          <div class="item-row" style="align-items:center;">
+            <div class="item-info">
+              <div class="item-title">
+                <b style="color:var(--accent); font-family:var(--mono); font-size:15px;">${esc(c.code || c.id)}</b>
+                <span style="color:var(--gold); font-size:12px; font-weight:700; margin-left:8px;">${c.discount}% Discount / ${c.coinsBonus || 0} Bonus Coins</span>
+              </div>
+              <div class="item-sub">
+                <span>Min Order: <b>৳${c.minAmount || 100}</b></span>
+                <span>Status: <b style="color:${c.active !== false ? 'var(--accent)' : 'var(--danger)'};">${c.active !== false ? 'ACTIVE' : 'EXPIRED'}</b></span>
+              </div>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="deleteCoupon('${esc(c.id)}')"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        `).join('') || '<p style="color:var(--muted); font-size:13px;">No coupons added yet. Click "+ Add New Coupon" above.</p>'}
+      </div>
+    </div>
+  `;
+}
+
+function saveAnnouncement() {
+  const text = $('#setAnnouncementText').value.trim();
+  DB.ref('settings/announcement').set(text).then(() => {
+    admToast('Announcement ticker updated on user panel!');
+  });
+}
+
+function openCouponModal() {
+  openAdminModal(`
+    <h3 style="margin-bottom:14px;"><i class="fa-solid fa-tags" style="color:var(--accent); margin-right:8px;"></i>Add Discount Coupon</h3>
+    <div class="form-field">
+      <label>Coupon Code (e.g. VIP50, WELCOME2026)</label>
+      <input id="cpCode" placeholder="VIP50" style="text-transform:uppercase; font-family:var(--mono); font-weight:800;">
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Discount Percentage (%)</label>
+        <input id="cpDiscount" type="number" value="5" min="1" max="50">
+      </div>
+      <div class="form-field">
+        <label>Minimum Order (৳ BDT)</label>
+        <input id="cpMin" type="number" value="200">
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+      <button class="btn btn-glass" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCoupon()"><i class="fa-solid fa-save"></i> Save Coupon</button>
+    </div>
+  `);
+}
+
+function saveCoupon() {
+  const code = $('#cpCode').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!code) return alert('Coupon code is required');
+
+  const coupon = {
+    code,
+    discount: Number($('#cpDiscount').value) || 5,
+    minAmount: Number($('#cpMin').value) || 100,
+    active: true,
+    createdAt: Date.now()
+  };
+
+  DB.ref('settings/coupons/' + code).set(coupon).then(() => {
+    closeAdminModal();
+    admToast('Coupon code ' + code + ' activated!');
+  });
+}
+
+function deleteCoupon(code) {
+  if (confirm('Delete coupon code ' + code + '?')) {
+    DB.ref('settings/coupons/' + code).remove().then(() => admToast('Coupon deleted'));
+  }
+}
+
+/* ==================== TAB 9: USERS & BALANCES (CRUD) ==================== */
+function renderUsersTab() {
+  const list = Object.entries(AdminState.users || {}).map(([id, u]) => ({ id, ...u }));
+  return `
+    <div class="data-card">
+      <div class="card-head">
+        <div>
+          <h3><i class="fa-solid fa-users"></i>Registered Customers &amp; Coin Balances</h3>
+          <span style="font-size:12px; color:var(--muted);">${list.length} registered customers</span>
+        </div>
+      </div>
+      ${list.map(u => {
+        const isSuspended = u.status === 'SUSPENDED';
+        return `
+          <div class="item-row">
+            <div class="item-info">
+              <div class="item-title" style="display:flex; align-items:center; gap:8px;">
+                <b>${esc(u.name || 'Customer')}</b>
+                <span style="color:var(--muted);">(${esc(u.phone || u.email || 'No Contact')})</span>
+                ${isSuspended ? '<span class="status-tag rejected">SUSPENDED</span>' : ''}
+              </div>
+              <div class="item-sub">
+                <span>Wallet Balance: <b style="color:var(--gold);">🪙 ${Number(u.walletCoins || 0)} Coins</b></span>
+                <span>VIP: <b style="color:var(--accent);">${esc(u.vipTier || 'GOLD')}</b></span>
+                <span>Joined: <b>${fmtDate(u.createdAt || u.ts)}</b></span>
+              </div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-glass btn-sm" onclick="adjustUserCoins('${esc(u.id)}', '${esc(u.name || 'Customer')}', ${Number(u.walletCoins || 0)})">
+                <i class="fa-solid fa-coins" style="color:var(--gold);"></i> Adjust Balance
+              </button>
+              <button class="btn ${isSuspended ? 'btn-success' : 'btn-danger'} btn-sm" onclick="toggleUserSuspension('${esc(u.id)}')">
+                <i class="fa-solid ${isSuspended ? 'fa-check' : 'fa-ban'}"></i> ${isSuspended ? 'Unsuspend' : 'Suspend'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('') || '<p style="color:var(--muted)">No registered users found yet.</p>'}
+    </div>
+  `;
+}
+
+function adjustUserCoins(userId, name, currentCoins) {
+  const delta = prompt(`Adjust Coin Balance for ${name} (Current: ${currentCoins} Coins):\nType positive amount (e.g. +500) to ADD, or negative (e.g. -200) to DEDUCT:`);
+  if (!delta) return;
+  const num = Number(delta);
+  if (isNaN(num) || num === 0) return alert('Invalid amount');
+
+  DB.ref('customers/' + userId + '/walletCoins').transaction(cur => Math.max(0, (Number(cur || 0) + num)));
+  DB.ref('transactions').push({
+    userId,
+    amount: num,
+    reason: `Admin adjustment (${num > 0 ? '+' + num : num} Coins)`,
+    ts: Date.now()
+  });
+  admToast(`Adjusted ${name} balance by ${num > 0 ? '+' + num : num} Coins`);
+}
+
+function toggleUserSuspension(userId) {
+  const u = AdminState.users[userId];
+  if (!u) return;
+  const newStatus = u.status === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED';
+  DB.ref('customers/' + userId).update({ status: newStatus }).then(() => {
+    admToast(newStatus === 'SUSPENDED' ? 'Customer account suspended' : 'Customer account active');
+  });
+}
+
+/* ==================== TAB 10: SETTINGS & GATEWAYS ==================== */
+function renderSettingsTab() {
+  const pNums = AdminState.settings.paymentNumbers || {};
+  return `
+    <div class="data-card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-money-bill-wave"></i>Payment Gateway Accounts</h3>
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()"><i class="fa-solid fa-save"></i> Save Gateway Accounts</button>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>bKash Personal Number</label>
+          <input id="setBkashPersonal" value="${esc(pNums.bkashPersonal || '01888123456')}">
+        </div>
+        <div class="form-field">
+          <label>bKash Merchant / Agent (API Simulation)</label>
+          <input id="setBkashMerchant" value="${esc(pNums.bkashMerchant || '01888123456')}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>Nagad Personal Number</label>
+          <input id="setNagad" value="${esc(pNums.nagad || '01999123456')}">
+        </div>
+        <div class="form-field">
+          <label>Rocket Number (DBBL)</label>
+          <input id="setRocket" value="${esc(pNums.rocket || '01777123456')}">
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Binance Pay ID / USDT TRC20 Address</label>
+        <input id="setBinancePay" value="${esc(pNums.binancePayId || '75421939')}">
+      </div>
+    </div>
+  `;
+}
+
+function saveSettings() {
+  const pNums = {
+    bkashPersonal: $('#setBkashPersonal').value.trim(),
+    bkashMerchant: $('#setBkashMerchant').value.trim(),
+    nagad: $('#setNagad').value.trim(),
+    rocket: $('#setRocket').value.trim(),
+    binancePayId: $('#setBinancePay').value.trim()
+  };
+
+  DB.ref('settings/paymentNumbers').set(pNums).then(() => {
+    admToast('Gateway settings saved successfully!');
+  });
+}
+
+/* ==================== SEED DEMO CATALOG ==================== */
+function seedDemoCatalog() {
+  if (!confirm('Populate catalog with rich initial data (Dollar rates, Free Fire packs, PUBG UC, Canva, Telegram, Reviews, and Coupons)?')) return;
+
+  const demoProducts = {
+    prod_ff_115: { name: 'Free Fire 115 Diamonds (UID)', category: 'games', deliveryType: 'Instant Player UID', price: 85, coins: 85, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80', desc: 'Instant UID top-up for Bangladesh & Global region.' },
+    prod_ff_610: { name: 'Free Fire 610 Diamonds (UID)', category: 'games', deliveryType: 'Instant Player UID', price: 415, coins: 415, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80', desc: 'Best value diamond pack with instant delivery.' },
+    prod_pubg_660: { name: 'PUBG Mobile 660 UC (Global)', category: 'games', deliveryType: 'Instant Player UID', price: 940, coins: 940, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&q=80', desc: 'Character ID instant top-up within 30 seconds.' },
+    prod_canva_pro: { name: 'Canva Pro Lifetime License', category: 'subscriptions', deliveryType: 'Account Login', price: 199, coins: 199, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400&q=80', desc: 'Own email upgrade with all premium brand assets unlocked.' },
+    prod_tg_prem: { name: 'Telegram Premium (3 Months)', category: 'subscriptions', deliveryType: 'Direct Link', price: 950, coins: 950, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?w=400&q=80', desc: 'Activated via official Telegram gift link within 5 minutes.' },
+    prod_chatgpt: { name: 'ChatGPT Plus GPT-4o Access', category: 'ai-tools', deliveryType: 'Account Login', price: 450, coins: 450, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=400&q=80', desc: 'Direct profile access with full GPT-4o & DALL-E 3 tools.' }
+  };
+
+  const defaultRates = {
+    usdt: { id:'usdt', name:'USDT (TRC20)', buyRate:125.00, sellRate:121.50, reserve:18500, min:10, max:2000, fee:0, icon:'https://cryptologos.cc/logos/tether-usdt-logo.png' },
+    binance: { id:'binance', name:'Binance Pay (USD)', buyRate:125.50, sellRate:122.00, reserve:14200, min:5, max:3000, fee:0, icon:'https://cryptologos.cc/logos/binance-coin-bnb-logo.png' },
+    payeer: { id:'payeer', name:'Payeer USD', buyRate:126.00, sellRate:120.00, reserve:6400, min:5, max:1000, fee:1, icon:'https://payeer.com/favicon.ico' },
+    pm: { id:'pm', name:'Perfect Money', buyRate:127.00, sellRate:120.50, reserve:5100, min:5, max:1500, fee:1, icon:'https://perfectmoney.com/favicon.ico' },
+    paypal: { id:'paypal', name:'PayPal USD', buyRate:124.00, sellRate:118.00, reserve:4800, min:10, max:500, fee:2, icon:'https://www.paypalobjects.com/webstatic/icon/favicon.ico' }
+  };
+
+  const demoReviews = {
+    rev_1: { name: 'Tanvir Ahmed (Sylhet)', rating: 5, product: 'Free Fire 610 Diamonds', text: 'Top-up received in literally 15 seconds after bKash payment! Fastest top-up service in Bangladesh.', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80', verified: true, status: 'APPROVED', ts: Date.now() - 3600000 * 2 },
+    rev_2: { name: 'Shahriar Hossain (Chittagong)', rating: 5, product: 'USDT (TRC20) Cashout', text: 'Exchanged $150 USDT to bKash. Exchange rate was 121.50 and money arrived in 3 minutes. Truly professional service.', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&q=80', verified: true, status: 'APPROVED', ts: Date.now() - 3600000 * 5 },
+    rev_3: { name: 'Farhana Yasmin (Dhaka)', rating: 5, product: 'Canva Pro Lifetime License', text: 'Upgraded my own personal email in Canva Pro. All brand kits and premium stock images work perfectly!', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80', verified: true, status: 'APPROVED', ts: Date.now() - 3600000 * 12 },
+    rev_4: { name: 'Rakib Hassan (Rajshahi)', rating: 5, product: 'PUBG Mobile 660 UC', text: 'Direct Character ID instant top-up. Clean interface and instant wallet payment without delays.', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80', verified: true, status: 'APPROVED', ts: Date.now() - 3600000 * 24 }
+  };
+
+  const demoCoupons = {
+    VIP50: { code: 'VIP50', discount: 5, minAmount: 200, active: true, createdAt: Date.now() },
+    WELCOME: { code: 'WELCOME', discount: 10, minAmount: 100, active: true, createdAt: Date.now() }
+  };
+
+  DB.ref('products').update(demoProducts);
+  DB.ref('settings/dollarRates').set(defaultRates);
+  DB.ref('reviews').set(demoReviews);
+  DB.ref('settings/coupons').set(demoCoupons);
+  admToast('Demo products, rates, reviews, and coupons seeded!');
+}
+
+/* ==================== TAB SWITCHER ==================== */
+function setAdminTab(tab) {
+  AdminState.currentTab = tab;
+  $$('.nav-link').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+  const titles = {
+    dashboard: 'Dashboard & Analytics',
+    exchanges: 'Dollar Exchanges',
+    addFunds: 'Add Funds Requests',
+    deposits: 'Add Funds Requests',
+    orders: 'Customer Store Orders',
+    products: 'Products & Game Top-Ups',
+    dollarRates: 'Dollar Rates & Reserves',
+    reviews: 'Customer Reviews Manager',
+    promotions: 'Banners, Ticker & Coupons',
+    users: 'Customers & Wallets',
+    settings: 'Gateways & Settings'
+  };
+  $('#adminHeaderTitle').textContent = titles[tab] || (tab.charAt(0).toUpperCase() + tab.slice(1));
+  $('#adminSidebar').classList.remove('open');
+
+  const container = $('#adminContent');
+  if (tab === 'dashboard') container.innerHTML = renderDashboard();
+  else if (tab === 'exchanges') container.innerHTML = renderExchangesTab();
+  else if (tab === 'addFunds' || tab === 'deposits') container.innerHTML = renderAddFundsTab();
+  else if (tab === 'orders') container.innerHTML = renderOrdersTab();
+  else if (tab === 'products') container.innerHTML = renderProductsTab();
+  else if (tab === 'dollarRates') container.innerHTML = renderDollarRatesTab();
+  else if (tab === 'reviews') container.innerHTML = renderReviewsTab();
+  else if (tab === 'promotions') container.innerHTML = renderPromotionsTab();
+  else if (tab === 'users') container.innerHTML = renderUsersTab();
+  else if (tab === 'settings') container.innerHTML = renderSettingsTab();
+}
+
+/* ==================== BOOT & REAL-TIME LISTENERS ==================== */
+function initAdmin() {
+  checkAuth();
+  if (!DB) return;
+
+  DB.ref('dollarRequests').on('value', snap => {
+    AdminState.dollarRequests = snap.val() || {};
+    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'exchanges') setAdminTab(AdminState.currentTab);
+  });
+
+  DB.ref('addFunds').on('value', snap => {
+    AdminState.addFunds = snap.val() || {};
+    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'addFunds' || AdminState.currentTab === 'deposits') setAdminTab(AdminState.currentTab);
+  });
+
+  DB.ref('deposits').on('value', snap => {
+    AdminState.deposits = snap.val() || {};
+    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'addFunds' || AdminState.currentTab === 'deposits') setAdminTab(AdminState.currentTab);
+  });
+
+  DB.ref('orders').on('value', snap => {
+    AdminState.orders = snap.val() || {};
+    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'orders') setAdminTab(AdminState.currentTab);
+  });
+
+  DB.ref('products').on('value', snap => {
+    AdminState.products = snap.val() || {};
+    if (AdminState.currentTab === 'products') setAdminTab('products');
+  });
+
+  DB.ref('reviews').on('value', snap => {
+    AdminState.reviews = snap.val() || {};
+    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'reviews') setAdminTab(AdminState.currentTab);
+  });
+
+  DB.ref('customers').on('value', snap => {
+    AdminState.users = snap.val() || {};
+    if (AdminState.currentTab === 'users') setAdminTab('users');
+  });
+
+  DB.ref('settings').on('value', snap => {
+    AdminState.settings = snap.val() || {};
+    if (AdminState.currentTab === 'dollarRates' || AdminState.currentTab === 'settings' || AdminState.currentTab === 'promotions') setAdminTab(AdminState.currentTab);
+  });
+
+  setAdminTab('dashboard');
+}
+
+document.addEventListener('DOMContentLoaded', initAdmin);
+window.setAdminTab = setAdminTab;
+window.verifyAdminKey = verifyAdminKey;
+window.adminLogout = adminLogout;
+window.approveExchange = approveExchange;
+window.rejectExchange = rejectExchange;
+window.approveAddFunds = approveAddFunds;
+window.rejectAddFunds = rejectAddFunds;
+window.approveDeposit = approveAddFunds;
+window.rejectDeposit = rejectAddFunds;
+window.saveAllDollarRates = saveAllDollarRates;
+window.openAddCurrencyModal = openAddCurrencyModal;
+window.saveNewCurrency = saveNewCurrency;
+window.deleteCurrency = deleteCurrency;
+window.openProductEditorModal = openProductEditorModal;
+window.saveProduct = saveProduct;
+window.deleteProduct = deleteProduct;
+window.toggleProductStock = toggleProductStock;
+window.setProdFilter = setProdFilter;
+window.setOrdersFilter = setOrdersFilter;
+window.openOrderFulfillModal = openOrderFulfillModal;
+window.fulfillOrder = fulfillOrder;
+window.refundOrderToWallet = refundOrderToWallet;
+window.deleteOrder = deleteOrder;
+window.setReviewsFilter = setReviewsFilter;
+window.openReviewEditorModal = openReviewEditorModal;
+window.saveReview = saveReview;
+window.toggleReviewPublish = toggleReviewPublish;
+window.deleteReview = deleteReview;
+window.saveAnnouncement = saveAnnouncement;
+window.openCouponModal = openCouponModal;
+window.saveCoupon = saveCoupon;
+window.deleteCoupon = deleteCoupon;
+window.adjustUserCoins = adjustUserCoins;
+window.toggleUserSuspension = toggleUserSuspension;
+window.saveSettings = saveSettings;
+window.seedDemoCatalog = seedDemoCatalog;
+window.closeAdminModal = closeAdminModal;
+</script>
+</body>
+</html>

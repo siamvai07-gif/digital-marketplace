@@ -1,0 +1,6 @@
+{
+  "name": "NEXUS DIGITAL — Digital Marketplace & Dollar Exchange",
+  "description": "Instant Dollar Buy & Sell, Free Fire Diamonds, PUBG UC, Prepaid Coin Wallet, Gift Cards and Subscriptions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
