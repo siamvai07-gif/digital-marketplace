@@ -70,8 +70,16 @@ body::before {
     radial-gradient(600px 600px at 50% 105%, rgba(0, 245, 160, 0.12), transparent 70%);
   background-color: var(--bg);
 }
+* {
+  -webkit-tap-highlight-color: transparent;
+}
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+button, a, .btn, .d-card, .q-card, .pay-acc-card, .rate-item, .pack-pill, .amount-pill-btn, .calc-tab, .icon-btn, .wallet-badge-btn, .mn-item, .copy-num-btn {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
 input, select, textarea { font-family: inherit; font-size: 14px; color: var(--text); }
 ::placeholder { color: var(--muted-dark); }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -285,7 +293,7 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--te
   box-shadow: 0 2px 6px rgba(0,0,0,0.5);
 }
 
-/* ==================== BUTTONS ==================== */
+/* ==================== BUTTONS & TOUCH ACTIVE FEEDBACK ==================== */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -295,11 +303,15 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--te
   border-radius: 14px;
   font-weight: 700;
   font-size: 13.5px;
-  transition: all .2s;
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.12s, filter 0.12s, background 0.15s, border-color 0.15s;
   cursor: pointer;
   white-space: nowrap;
 }
-.btn:active { transform: scale(0.97); }
+.btn:active {
+  transform: scale(0.96) translateY(1px);
+  filter: brightness(0.92);
+  transition: transform 0.06s ease, filter 0.06s ease;
+}
 .btn-primary {
   background: var(--grad-main);
   color: #fff;
@@ -309,6 +321,11 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--te
   box-shadow: 0 10px 30px var(--primary-glow);
   transform: translateY(-1px);
 }
+.btn-primary:active {
+  transform: scale(0.96) translateY(1px);
+  filter: brightness(0.92);
+  box-shadow: 0 3px 12px rgba(0, 242, 254, 0.45);
+}
 .btn-dollar {
   background: var(--grad-dollar);
   color: #05161b;
@@ -316,16 +333,33 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--te
   box-shadow: 0 8px 24px rgba(0, 245, 160, 0.35);
 }
 .btn-dollar:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(0, 245, 160, 0.45); }
+.btn-dollar:active {
+  transform: scale(0.96) translateY(1px);
+  filter: brightness(0.92);
+  box-shadow: 0 3px 12px rgba(0, 245, 160, 0.45);
+}
 .btn-gaming {
   background: var(--grad-gaming);
   color: #fff;
   box-shadow: 0 8px 24px rgba(255, 0, 127, 0.35);
+}
+.btn-gaming:hover { transform: translateY(-1px); }
+.btn-gaming:active {
+  transform: scale(0.96) translateY(1px);
+  filter: brightness(0.92);
+  box-shadow: 0 3px 12px rgba(255, 0, 127, 0.45);
 }
 .btn-wallet {
   background: var(--grad-gold);
   color: #1f1400;
   font-weight: 800;
   box-shadow: 0 8px 24px var(--gold-glow);
+}
+.btn-wallet:hover { transform: translateY(-1px); }
+.btn-wallet:active {
+  transform: scale(0.96) translateY(1px);
+  filter: brightness(0.92);
+  box-shadow: 0 3px 12px rgba(255, 215, 0, 0.45);
 }
 .btn-glass {
   background: rgba(255,255,255,0.06);
@@ -336,10 +370,134 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--te
   background: rgba(255,255,255,0.12);
   border-color: rgba(255,255,255,0.25);
 }
+.btn-glass:active {
+  transform: scale(0.96) translateY(1px);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(0, 242, 254, 0.4);
+}
 .btn-sm { padding: 8px 14px; font-size: 12px; border-radius: 10px; }
 .btn-lg { padding: 15px 28px; font-size: 15px; border-radius: 16px; }
 .btn-block { width: 100%; }
 .btn[disabled] { opacity: 0.5; pointer-events: none; }
+
+/* Icon buttons & Wallet Badge active feedback */
+.icon-btn:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: var(--primary);
+  transition: transform 0.06s ease;
+}
+.wallet-badge-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 10px rgba(255, 215, 0, 0.35);
+  border-color: var(--gold);
+  transition: transform 0.06s ease;
+}
+
+/* ==================== TOUCH ERGONOMICS: CARDS & INTERACTIVE ITEMS ACTIVE FEEDBACK ==================== */
+/* Product Cards touch feedback */
+.d-card:active {
+  transform: scale(0.975);
+  border-color: var(--primary);
+  box-shadow: 0 4px 16px rgba(0, 242, 254, 0.25);
+  transition: transform 0.08s ease, border-color 0.08s ease, box-shadow 0.08s ease;
+}
+
+/* Quick Matrix Category Cards touch feedback */
+.q-card:active {
+  transform: scale(0.93);
+  border-color: var(--primary);
+  background: rgba(26, 40, 80, 0.95);
+  box-shadow: 0 2px 12px rgba(0, 242, 254, 0.28);
+  transition: transform 0.08s ease, background 0.08s ease;
+}
+.q-card:active .q-ic {
+  transform: scale(0.92);
+  transition: transform 0.08s ease;
+}
+
+/* Exchange Rate items touch feedback */
+.rate-item:active {
+  transform: scale(0.95);
+  border-color: var(--accent);
+  background: rgba(26, 42, 82, 0.95);
+  box-shadow: 0 2px 12px rgba(0, 245, 160, 0.3);
+  transition: transform 0.08s ease;
+}
+
+/* Payment Account Cards (Multi-Number bKash/Nagad/Rocket/Binance) */
+.pay-acc-card:active {
+  transform: scale(0.98);
+  border-color: var(--primary);
+  background: rgba(24, 38, 76, 0.9);
+  transition: transform 0.08s ease;
+}
+
+/* Copy Number Only button active state */
+.copy-num-btn:active {
+  transform: scale(0.92);
+  background: var(--primary);
+  color: #060913;
+  box-shadow: 0 0 14px var(--primary-glow);
+  transition: transform 0.06s ease;
+}
+
+/* Add Funds Amount Selection Pills */
+.amount-pill-btn:active {
+  transform: scale(0.94);
+  border-color: var(--gold);
+  background: rgba(255, 215, 0, 0.2);
+  box-shadow: 0 0 12px var(--gold-glow);
+  transition: transform 0.08s ease;
+}
+
+/* Exchange & Wallet Tabs */
+.calc-tab:active {
+  transform: scale(0.95);
+  transition: transform 0.08s ease;
+}
+
+/* Game Top-Up Pack Pills */
+.pack-pill:active {
+  transform: scale(0.93);
+  border-color: var(--primary);
+  background: rgba(0, 242, 254, 0.22);
+  transition: transform 0.08s ease;
+}
+
+/* Gateway Action Buttons */
+.btn-gateway-auto:active,
+.btn-gateway-nagad:active,
+.btn-send-manual:active {
+  transform: scale(0.96) translateY(1px);
+  filter: brightness(0.92);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  transition: transform 0.08s ease, filter 0.08s ease;
+}
+
+/* Mobile Bottom Navigation Item Touch */
+.mn-item:active {
+  transform: scale(0.88);
+  color: var(--primary);
+  transition: transform 0.06s ease;
+}
+.mn-item:active i {
+  transform: scale(1.15);
+  transition: transform 0.06s ease;
+}
+
+/* Wishlist Heart Touch Feedback */
+.d-wish:active {
+  transform: scale(0.82);
+  background: rgba(255, 0, 90, 0.25);
+  color: #ff3366;
+  transition: transform 0.06s ease;
+}
+
+/* Game Top-Up Box Touch */
+.game-topup-box:active {
+  border-color: rgba(0, 242, 254, 0.45);
+}
 
 /* ==================== HERO SECTION ==================== */
 .hero-wrap {
@@ -411,6 +569,128 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--te
   mask-image: radial-gradient(circle at 60% 50%, black 40%, transparent 80%);
   -webkit-mask-image: radial-gradient(circle at 60% 50%, black 40%, transparent 80%);
 }
+
+/* ==================== 3D ANIMATED YOUTUBE VIDEO HERO ==================== */
+.hero-wrap.video-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 242, 254, 0.15);
+  min-height: 360px;
+  display: flex;
+  align-items: center;
+  background: #060913;
+}
+@media (min-width: 768px) {
+  .hero-wrap.video-hero { min-height: 420px; }
+}
+.video-hero-bg {
+  position: absolute;
+  top: -90px; bottom: -90px; left: -90px; right: -90px;
+  pointer-events: none;
+  z-index: 1;
+}
+.video-hero-bg iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  filter: contrast(1.15) brightness(0.68) saturate(1.25);
+  transform: scale(1.4);
+  pointer-events: none;
+}
+.video-hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: 
+    linear-gradient(180deg, rgba(6, 9, 19, 0.5) 0%, rgba(6, 9, 19, 0.96) 95%),
+    radial-gradient(circle at 35% 45%, rgba(112, 0, 255, 0.22) 0%, transparent 70%);
+  pointer-events: none;
+}
+.video-slide {
+  position: relative;
+  z-index: 3;
+  padding: 32px 20px;
+  width: 100%;
+  max-width: 800px;
+}
+@media (min-width: 768px) {
+  .video-slide { padding: 48px 44px; }
+}
+.hero-floating-pills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+.h-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(14, 22, 46, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 7px 14px;
+  border-radius: 50px;
+  font-size: 11.5px;
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+
+/* Payment Account Cards (Multi-Number System) */
+.pay-acc-card {
+  background: rgba(14, 22, 46, 0.65);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: all .2s;
+  position: relative;
+}
+.pay-acc-card:hover {
+  border-color: rgba(0, 242, 254, 0.35);
+  background: rgba(20, 32, 64, 0.75);
+}
+.pay-acc-card.selected {
+  border-color: var(--accent);
+  background: rgba(0, 245, 160, 0.08);
+}
+.pay-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.clean-number-display {
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+  font-family: var(--mono);
+  letter-spacing: 1px;
+}
+.copy-num-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(0, 242, 254, 0.14);
+  color: var(--primary);
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  cursor: pointer;
+  transition: all .2s;
+}
+.copy-num-btn:hover {
+  background: var(--primary);
+  color: #060913;
+}
+.copy-num-btn:active { transform: scale(0.96); }
 
 /* ==================== QUICK ACTION MATRIX ==================== */
 .quick-matrix {
@@ -2005,17 +2285,138 @@ const DEFAULT_DOLLAR_RATES = {
   paypal: { id:'paypal', name:'PayPal USD', buyRate:124.00, sellRate:118.00, reserve:4800, min:10, max:500, fee:2, icon:'https://www.paypalobjects.com/webstatic/icon/favicon.ico' }
 };
 
+const DEFAULT_PAYMENT_ACCOUNTS = {
+  acc_bkash_send: {
+    id: 'acc_bkash_send',
+    provider: 'bkash',
+    type: 'SEND_MONEY',
+    number: '01888123456',
+    label: 'Primary bKash Personal',
+    limit: 'Send Money only • Limit: 25,000৳ • 24/7 Active',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_bkash_cashout: {
+    id: 'acc_bkash_cashout',
+    provider: 'bkash',
+    type: 'CASH_OUT',
+    number: '01888987654',
+    label: 'bKash Agent (Cash Out)',
+    limit: 'Cash Out only • Use Agent Option • 24/7 Active',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_nagad_send: {
+    id: 'acc_nagad_send',
+    provider: 'nagad',
+    type: 'SEND_MONEY',
+    number: '01999123456',
+    label: 'Nagad Personal (Send Money)',
+    limit: 'Send Money only • Instant Auto-Credit',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_nagad_cashout: {
+    id: 'acc_nagad_cashout',
+    provider: 'nagad',
+    type: 'CASH_OUT',
+    number: '01999876543',
+    label: 'Nagad Agent (Cash Out)',
+    limit: 'Agent Cash Out • Immediate Settlement',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_rocket_send: {
+    id: 'acc_rocket_send',
+    provider: 'rocket',
+    type: 'SEND_MONEY',
+    number: '017771234567',
+    label: 'DBBL Rocket Personal',
+    limit: '12-digit DBBL number • Send Money',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_binance: {
+    id: 'acc_binance',
+    provider: 'binance',
+    type: 'SEND_MONEY',
+    number: '75421939',
+    label: 'Binance Pay UID (USDT)',
+    limit: 'Binance Pay ID: 75421939 • Zero Gas Fee',
+    active: true,
+    updatedAt: Date.now()
+  }
+};
+
+const DEFAULT_HERO_VIDEO = {
+  enabled: true,
+  youtubeUrl: 'https://www.youtube.com/watch?v=ysz5S6PUM-U',
+  videoId: 'ysz5S6PUM-U',
+  title: 'BUY & SELL DOLLAR & GAME TOP-UPS INSTANTLY',
+  subtitle: 'Instant USDT, Payeer & Binance Pay cashout via bKash/Nagad. Free Fire Diamond Top-Up, PUBG UC & Premium Accounts in seconds.',
+  badge: '#1 RATED DIGITAL MARKETPLACE & DOLLAR DESK'
+};
+
+function extractYouTubeId(urlOrId) {
+  if (!urlOrId) return 'ysz5S6PUM-U';
+  const str = String(urlOrId).trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return str;
+  const match = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+  return match ? match[1] : 'ysz5S6PUM-U';
+}
+
+function copyCleanNumberOnly(rawText, btnEl) {
+  if (!rawText) return;
+  let str = String(rawText).trim();
+  str = str.replace(/\([^)]*\)/g, '').trim();
+  const digitMatch = str.match(/(?:(?:\+?88)?01[3-9]\d{8}|\d{7,15})/);
+  let clean = digitMatch ? digitMatch[0] : str.replace(/[^\w]/g, '');
+  if (clean.startsWith('+88')) clean = clean.substring(3);
+  if (clean.startsWith('8801')) clean = clean.substring(2);
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(clean).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = clean;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    });
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = clean;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+
+  if (btnEl) {
+    const origHtml = btnEl.innerHTML;
+    btnEl.innerHTML = '<i class="fa-solid fa-check" style="color:#10b981;"></i> Copied!';
+    btnEl.classList.add('copied');
+    setTimeout(() => {
+      btnEl.innerHTML = origHtml;
+      btnEl.classList.remove('copied');
+    }, 2000);
+  }
+  toast('Copied number only: ' + clean, 'ok');
+}
+
 const DEFAULT_SETTINGS = {
   brand: { name: 'NEXUS DIGITAL', tagline: 'World-Class Digital Marketplace', logoUrl: '' },
   currency: '৳',
   coinRate: 1, // 1 Coin = 1 BDT
   contact: { whatsapp: '8801800000000', telegram: '@nexusdigital', supportEmail: 'support@nexus.io' },
+  paymentAccounts: DEFAULT_PAYMENT_ACCOUNTS,
+  heroVideo: DEFAULT_HERO_VIDEO,
   paymentNumbers: {
-    bkashPersonal: '018XXXXXXXX (Send Money)',
-    bkashMerchant: '018XXXXXXXX (Make Payment)',
-    nagad: '019XXXXXXXX (Send Money)',
-    rocket: '017XXXXXXXXX (Send Money)',
-    binancePayId: '75421939 (Binance Pay)'
+    bkashPersonal: '01888123456',
+    bkashMerchant: '01888987654',
+    nagad: '01999123456',
+    rocket: '017771234567',
+    binancePayId: '75421939'
   },
   dollarRates: DEFAULT_DOLLAR_RATES,
   announcement: { enabled: true, text: 'Welcome to NEXUS Digital! Instant Dollar Buy/Sell, Free Fire UID Diamond Top-ups, and 2% Cashback on Wallet Deposits!' }
@@ -2269,6 +2670,61 @@ window.addEventListener('hashchange', () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
+function renderHeroSection() {
+  const hero = { ...DEFAULT_HERO_VIDEO, ...(State.settings.heroVideo || {}) };
+  const vidId = extractYouTubeId(hero.youtubeUrl || hero.videoId);
+
+  if (hero.enabled !== false && vidId) {
+    return `
+      <!-- 3D Animated YouTube Video Hero Section -->
+      <div class="hero-wrap video-hero">
+        <div class="video-hero-bg">
+          <iframe
+            src="https://www.youtube.com/embed/${vidId}?autoplay=1&mute=1&loop=1&playlist=${vidId}&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            title="Nexus Hero Cinema">
+          </iframe>
+        </div>
+        <div class="video-hero-overlay"></div>
+        <div class="video-slide">
+          <div class="hero-pill"><i class="fa-solid fa-fire"></i> ${esc(hero.badge || '#1 RATED DIGITAL MARKETPLACE & DOLLAR DESK')}</div>
+          <h1>${esc(hero.title || 'Buy & Sell Dollar Instantly With Guaranteed Safety')}</h1>
+          <p>${esc(hero.subtitle || 'Instant USDT, Payeer, Binance Pay & PayPal cashout via bKash/Nagad. Free Fire Diamond Top-Up, PUBG UC & Premium Accounts in seconds.')}</p>
+          <div class="hero-btn-row">
+            <a class="btn btn-dollar" href="#/exchange"><i class="fa-solid fa-arrow-right-arrow-left"></i>Exchange Dollar Now</a>
+            <button class="btn btn-wallet" onclick="openWalletSheet('deposit')"><i class="fa-solid fa-coins"></i>Add Funds (+2% Bonus)</button>
+          </div>
+          <div class="hero-floating-pills">
+            <div class="h-pill"><i class="fa-solid fa-bolt" style="color:#fbbf24"></i><span>10s Instant Delivery</span></div>
+            <div class="h-pill"><i class="fa-solid fa-shield-check" style="color:#34d399"></i><span>100% Escrow Security</span></div>
+            <div class="h-pill"><i class="fa-solid fa-star" style="color:#f59e0b"></i><span>4.9/5 Rating (12k+ Orders)</span></div>
+            <div class="h-pill"><i class="fa-brands fa-youtube" style="color:#ef4444"></i><span>Live 3D Cinema Feed</span></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <!-- Standard Graphic Hero Slider Fallback -->
+    <div class="hero-wrap">
+      <div class="hero-slider">
+        <div class="hero-slide">
+          <div class="hero-pill"><i class="fa-solid fa-fire"></i> ${esc(hero.badge || '#1 RATED DIGITAL MARKETPLACE & DOLLAR DESK')}</div>
+          <h1>${esc(hero.title || 'Buy & Sell Dollar Instantly With Guaranteed Safety')}</h1>
+          <p>${esc(hero.subtitle || 'Instant USDT, Payeer, Binance Pay & PayPal cashout via bKash/Nagad. Free Fire Diamond Top-Up, PUBG UC & Premium Accounts in seconds.')}</p>
+          <div class="hero-btn-row">
+            <a class="btn btn-dollar" href="#/exchange"><i class="fa-solid fa-arrow-right-arrow-left"></i>Exchange Dollar Now</a>
+            <button class="btn btn-wallet" onclick="openWalletSheet('deposit')"><i class="fa-solid fa-coins"></i>Add Funds (+2% Bonus)</button>
+          </div>
+        </div>
+        <div class="hero-graphic-bg" style="background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=900&q=80&auto=format&fit=crop');"></div>
+      </div>
+    </div>
+  `;
+}
+
 /* ==================== VIEW 1: HOME PAGE ==================== */
 function viewHome() {
   const r = State.dollarRates;
@@ -2285,21 +2741,7 @@ function viewHome() {
   `).join('');
 
   return `
-    <!-- Hero Slider -->
-    <div class="hero-wrap">
-      <div class="hero-slider">
-        <div class="hero-slide">
-          <div class="hero-pill"><i class="fa-solid fa-fire"></i> #1 RATED DIGITAL MARKETPLACE &amp; DOLLAR DESK</div>
-          <h1>Buy &amp; Sell Dollar Instantly With Guaranteed Safety</h1>
-          <p>Instant USDT, Payeer, Binance Pay &amp; PayPal cashout via bKash/Nagad. Free Fire Diamond Top-Up, PUBG UC &amp; Premium Accounts in seconds.</p>
-          <div class="hero-btn-row">
-            <a class="btn btn-dollar" href="#/exchange"><i class="fa-solid fa-arrow-right-arrow-left"></i>Exchange Dollar Now</a>
-            <button class="btn btn-wallet" onclick="openWalletSheet('deposit')"><i class="fa-solid fa-coins"></i>Top Up Coins (+2% Bonus)</button>
-          </div>
-        </div>
-        <div class="hero-graphic-bg" style="background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=900&q=80&auto=format&fit=crop');"></div>
-      </div>
-    </div>
+    ${renderHeroSection()}
 
     <!-- Quick Category Matrix -->
     <div class="quick-matrix">
@@ -2834,13 +3276,17 @@ function renderProductCards(filterCategory = 'all') {
 
   // If no products in DB yet, show high-converting default catalog
   if (!list.length) {
-    list = [
+    const defaultCatalog = [
+      { id: 'prod_ff_610', name: 'Free Fire 610 Diamonds (UID Top-Up)', category: 'games', price: 415, coins: 415, badge: 'BESTSELLER', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80&auto=format&fit=crop', desc: 'Instant Player UID direct top-up. BD & Global servers supported.' },
+      { id: 'prod_pubg_660', name: 'PUBG Mobile 660 UC (Global Character ID)', category: 'games', price: 940, coins: 940, badge: 'HOT', image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&q=80&auto=format&fit=crop', desc: 'Direct Character ID instant top-up within 30 seconds.' },
+      { id: 'prod_ff_115', name: 'Free Fire 115 Diamonds (UID Instant)', category: 'games', price: 85, coins: 85, badge: 'INSTANT', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80&auto=format&fit=crop', desc: 'Instant Player UID delivery to in-game vault.' },
       { id: 'prod_tg', name: 'Telegram Premium (3/6/12 Months)', category: 'subscriptions', price: 950, coins: 950, badge: 'HOT', image: 'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?w=600&q=80&auto=format&fit=crop', desc: 'No phone login needed. Activated via official Telegram gift link in 5 mins.' },
-      { id: 'prod_canva', name: 'Canva Pro Lifetime Access', category: 'subscriptions', price: 199, coins: 199, badge: 'BESTSELLER', image: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=600&q=80&auto=format&fit=crop', desc: 'Own email upgrade. Brand kits, unlimited templates & AI features.' },
+      { id: 'prod_canva', name: 'Canva Pro Lifetime Access', category: 'subscriptions', price: 199, coins: 199, badge: 'POPULAR', image: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=600&q=80&auto=format&fit=crop', desc: 'Own email upgrade. Brand kits, unlimited templates & AI features.' },
       { id: 'prod_chatgpt', name: 'ChatGPT Plus (GPT-4o / Canvas)', category: 'ai-tools', price: 450, coins: 450, badge: 'AI TOOLS', image: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=600&q=80&auto=format&fit=crop', desc: 'Instant private profile access. Unlimited prompts & image generation.' },
       { id: 'prod_gplay', name: 'Google Play Gift Card ($5 / $10 / $25)', category: 'giftcards', price: 620, coins: 620, badge: 'VOUCHER', image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&q=80&auto=format&fit=crop', desc: 'US Region instant redeem digital code delivered to your dashboard.' },
       { id: 'prod_netflix', name: 'Netflix 4K Ultra HD (1 Month Private Screen)', category: 'subscriptions', price: 299, coins: 299, badge: 'INSTANT', image: 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=600&q=80&auto=format&fit=crop', desc: 'Personal PIN-protected screen on Ultra HD Premium shared account.' }
     ];
+    list = filterCategory === 'all' ? defaultCatalog : defaultCatalog.filter(p => p.category === filterCategory);
   }
 
   return list.map(p => {
@@ -3553,9 +3999,13 @@ function renderAddFundsOptionsHTML() {
           </div>
           <span class="funds-tag-auto"><i class="fa-solid fa-bolt"></i> Instant 10s Auto-Credit</span>
         </div>
-        <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">
+        <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">
           Official bKash Checkout Gateway with instant automated verification, or manual Send Money.
         </p>
+        <div style="margin-bottom:12px;">
+          <span style="display:block; font-size:10.5px; text-transform:uppercase; color:var(--muted); font-weight:800; margin-bottom:6px;">Active bKash Numbers:</span>
+          ${getQuickAccountSnippetsHTML('bkash')}
+        </div>
         <div class="funds-actions-row">
           <button class="btn-gateway-auto" onclick="launchGatewayCheckout('bkash')">
             <i class="fa-solid fa-bolt"></i> bKash Online Gateway
@@ -3574,9 +4024,13 @@ function renderAddFundsOptionsHTML() {
           </div>
           <span class="funds-tag-auto" style="color:#f6921e; border-color:rgba(246,146,30,0.4); background:rgba(246,146,30,0.15);"><i class="fa-solid fa-bolt"></i> Zero Fee</span>
         </div>
-        <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">
+        <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">
           Nagad Express Online Gateway for real-time wallet top-up, or manual Send Money fallback.
         </p>
+        <div style="margin-bottom:12px;">
+          <span style="display:block; font-size:10.5px; text-transform:uppercase; color:var(--muted); font-weight:800; margin-bottom:6px;">Active Nagad Numbers:</span>
+          ${getQuickAccountSnippetsHTML('nagad')}
+        </div>
         <div class="funds-actions-row">
           <button class="btn-gateway-nagad" onclick="launchGatewayCheckout('nagad')">
             <i class="fa-solid fa-bolt"></i> Nagad Express Gateway
@@ -3598,6 +4052,38 @@ function renderAddFundsOptionsHTML() {
       </div>
     </div>
   `;
+}
+
+function getQuickAccountSnippetsHTML(provider) {
+  const rawAccounts = State.settings?.paymentAccounts || DEFAULT_PAYMENT_ACCOUNTS;
+  const accounts = Object.values(rawAccounts).filter(a => a.provider === provider && a.active !== false);
+  if (!accounts.length) {
+    const pNums = State.settings?.paymentNumbers || DEFAULT_SETTINGS.paymentNumbers;
+    const num = provider === 'bkash' ? (pNums.bkashPersonal || '01888123456') : (pNums.nagad || '01999123456');
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.3); padding:8px 12px; border-radius:10px;">
+        <span style="font-family:var(--mono); font-size:13.5px; font-weight:800; color:#fff;">${esc(num)}</span>
+        <button type="button" class="copy-num-btn" style="padding:4px 10px; font-size:11px;" onclick="copyCleanNumberOnly('${esc(num)}', this)" title="Copy number only">
+          <i class="fa-regular fa-copy"></i> Copy Number Only
+        </button>
+      </div>
+    `;
+  }
+  return accounts.map(a => {
+    const typeLabel = a.type === 'CASH_OUT' ? 'CASH OUT' : (a.type === 'MERCHANT' ? 'MERCHANT' : 'SEND MONEY');
+    const typeColor = a.type === 'CASH_OUT' ? '#f59e0b' : (a.type === 'MERCHANT' ? '#3b82f6' : '#10b981');
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.25); padding:8px 12px; border-radius:10px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.05); gap:8px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:9.5px; font-weight:900; padding:2px 6px; border-radius:4px; background:${typeColor}22; color:${typeColor}; border:1px solid ${typeColor}55;">${typeLabel}</span>
+          <span style="font-family:var(--mono); font-size:13.5px; font-weight:800; color:#fff;">${esc(a.number)}</span>
+        </div>
+        <button type="button" class="copy-num-btn" style="padding:5px 10px; font-size:11px;" onclick="copyCleanNumberOnly('${esc(a.number)}', this)" title="Copy strictly digits only">
+          <i class="fa-regular fa-copy"></i> Copy Number Only
+        </button>
+      </div>
+    `;
+  }).join('');
 }
 
 function calculateCoinsWithBonus(amount) {
@@ -3927,20 +4413,75 @@ function executeGatewayTransaction() {
   }, 1600);
 }
 
-/* ==================== POLISHED MANUAL PAYMENT FALLBACK ==================== */
+/* ==================== POLISHED MANUAL PAYMENT WITH UNLIMITED NUMBERS ==================== */
+let selectedManualAccountId = null;
+
+function selectManualAccount(accId) {
+  selectedManualAccountId = accId;
+  $$('.pay-acc-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.accId === accId);
+  });
+  const rad = document.getElementById('radio_' + accId);
+  if (rad) rad.checked = true;
+}
+
 function openManualAddFundsModal(method, amount, bonusCoins = 0) {
-  const pNums = State.settings.paymentNumbers || DEFAULT_SETTINGS.paymentNumbers;
-  const targetNum = method === 'nagad' ? pNums.nagad :
-                    method === 'rocket' ? pNums.rocket :
-                    method === 'binance' ? pNums.binancePayId :
-                    pNums.bkashPersonal;
+  const rawAccounts = State.settings?.paymentAccounts || DEFAULT_PAYMENT_ACCOUNTS;
+  let accounts = Object.entries(rawAccounts)
+    .filter(([_, a]) => (a.provider === method && a.active !== false))
+    .map(([id, a]) => ({ id, ...a }));
 
-  const methodName = method === 'nagad' ? 'Nagad Personal' :
-                     method === 'rocket' ? 'Rocket (DBBL)' :
-                     method === 'binance' ? 'Binance Pay USDT' :
-                     'bKash Personal';
+  if (accounts.length === 0) {
+    const pNums = State.settings?.paymentNumbers || DEFAULT_SETTINGS.paymentNumbers;
+    const fallbackNum = method === 'nagad' ? (pNums.nagad || '01999123456') :
+                        method === 'rocket' ? (pNums.rocket || '017771234567') :
+                        method === 'binance' ? (pNums.binancePayId || '75421939') :
+                        (pNums.bkashPersonal || '01888123456');
+    accounts = [{
+      id: 'fallback_' + method,
+      provider: method,
+      type: 'SEND_MONEY',
+      number: fallbackNum,
+      label: method.toUpperCase() + ' Default',
+      limit: 'Instant automated verification'
+    }];
+  }
 
+  selectedManualAccountId = accounts[0].id;
   const totalCoins = amount + bonusCoins;
+  const providerNames = {
+    bkash: 'bKash (Send Money / Cash Out)',
+    nagad: 'Nagad (Send Money / Cash Out)',
+    rocket: 'Rocket (DBBL 12-Digit)',
+    binance: 'Binance Pay (UID / USDT)',
+    upay: 'Upay (UCB Mobile Banking)'
+  };
+  const methodName = providerNames[method] || (method.toUpperCase() + ' Payment');
+
+  const accountsHTML = accounts.map((acc, idx) => {
+    const typeLabel = acc.type === 'CASH_OUT' ? 'CASH OUT (AGENT)' : (acc.type === 'MERCHANT' ? 'MERCHANT (PAYMENT)' : 'SEND MONEY (PERSONAL)');
+    const typeColor = acc.type === 'CASH_OUT' ? '#f59e0b' : (acc.type === 'MERCHANT' ? '#3b82f6' : '#10b981');
+    return `
+      <div class="pay-acc-card ${idx === 0 ? 'selected' : ''}" data-acc-id="${esc(acc.id)}" onclick="selectManualAccount('${esc(acc.id)}')">
+        <div class="pay-badge-row">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="radio" name="manualAccRadio" id="radio_${esc(acc.id)}" ${idx === 0 ? 'checked' : ''} style="cursor:pointer; accent-color:var(--accent);">
+            <b style="color:#fff; font-size:13.5px;">${esc(acc.label || (acc.provider.toUpperCase() + ' Account'))}</b>
+          </div>
+          <span style="font-size:10px; font-weight:900; padding:2px 8px; border-radius:6px; background:${typeColor}22; color:${typeColor}; border:1px solid ${typeColor}55;">
+            ${typeLabel}
+          </span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin:8px 0; background:rgba(0,0,0,0.3); padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.06);">
+          <span class="clean-number-display">${esc(acc.number)}</span>
+          <button type="button" class="copy-num-btn" onclick="event.stopPropagation(); copyCleanNumberOnly('${esc(acc.number)}', this)" title="Copy strictly digits only">
+            <i class="fa-regular fa-copy"></i> Copy Number Only
+          </button>
+        </div>
+        ${acc.limit ? `<div style="font-size:11.5px; color:var(--muted);"><i class="fa-solid fa-circle-info" style="color:var(--primary); margin-right:5px;"></i>${esc(acc.limit)}</div>` : ''}
+      </div>
+    `;
+  }).join('');
 
   openModal(`
     <div class="sheet-head">
@@ -3948,15 +4489,18 @@ function openManualAddFundsModal(method, amount, bonusCoins = 0) {
       <button class="icon-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="sheet-body">
-      <!-- Target Number Box with Copy Button -->
-      <div style="background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:18px; padding:18px; margin-bottom:18px;">
-        <span style="font-size:11.5px; text-transform:uppercase; color:var(--muted); font-weight:800;">Send Money / Transfer To This Number</span>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-          <span style="font-size:22px; font-weight:900; color:#fff; font-family:var(--mono);">${esc(targetNum)}</span>
-          <button class="btn btn-glass btn-sm" onclick="copyToClipboard('${esc(targetNum)}', 'Number copied!')">
-            <i class="fa-regular fa-copy"></i> Copy
-          </button>
-        </div>
+      <!-- Instruction Strip -->
+      <div style="background:rgba(255,215,0,0.08); border:1px solid rgba(255,215,0,0.25); border-radius:14px; padding:12px 14px; margin-bottom:14px; font-size:12px; color:var(--muted); line-height:1.5;">
+        <i class="fa-solid fa-shield-halved" style="color:var(--gold); margin-right:6px;"></i>
+        Select an active number below and tap <b style="color:#fff;">Copy Number Only</b>. Transfer the amount from your ${esc(method.toUpperCase())} app, then submit your TrxID.
+      </div>
+
+      <!-- Active Payment Numbers List with 1-Click Pure Digits Copy -->
+      <label style="display:block; font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:800; margin-bottom:8px;">
+        1. Select Number &amp; Copy Number (Strictly Digits Only)
+      </label>
+      <div style="margin-bottom:16px;">
+        ${accountsHTML}
       </div>
 
       <!-- Amount Summary -->
@@ -3973,13 +4517,13 @@ function openManualAddFundsModal(method, amount, bonusCoins = 0) {
 
       <!-- Verification Form -->
       <div class="field-group">
-        <label>Your Sender Mobile Number</label>
-        <input id="manSenderNum" type="tel" placeholder="018XXXXXXXX" value="${esc(getUser()?.phone || '')}" style="width:100%; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:14px; padding:12px 16px; color:#fff;">
+        <label>2. Your Sender Mobile Number / Binance ID</label>
+        <input id="manSenderNum" type="tel" placeholder="e.g. 018XXXXXXXX" value="${esc(getUser()?.phone || '')}" style="width:100%; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:14px; padding:12px 16px; color:#fff; font-family:var(--mono); font-size:15px;">
       </div>
 
       <div class="field-group">
-        <label>Transaction ID (TrxID)</label>
-        <input id="manTrxInput" placeholder="e.g. 9K28X1L4" style="width:100%; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:14px; padding:12px 16px; text-transform:uppercase; font-weight:900; color:var(--accent); font-family:var(--mono);">
+        <label>3. Transaction ID (TrxID)</label>
+        <input id="manTrxInput" placeholder="e.g. 9K28X1L4 (From SMS/App receipt)" style="width:100%; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:14px; padding:12px 16px; text-transform:uppercase; font-weight:900; color:var(--accent); font-family:var(--mono); font-size:16px;">
       </div>
 
       <button class="btn btn-primary btn-block btn-lg" style="margin-top:14px;" onclick="submitManualAddFunds('${esc(method)}', ${amount}, ${totalCoins})">
@@ -3993,14 +4537,17 @@ function submitManualAddFunds(method, amount, totalCoins) {
   const sender = $('#manSenderNum')?.value.trim();
   const trx = $('#manTrxInput')?.value.trim();
 
-  if (!sender || sender.length < 10) {
-    toast('Please enter valid sender phone number', 'err');
+  if (!sender || sender.length < 8) {
+    toast('Please enter valid sender phone number or Binance ID', 'err');
     return;
   }
   if (!trx || trx.length < 4) {
     toast('Please enter valid Transaction ID (TrxID)', 'err');
     return;
   }
+
+  const rawAccounts = State.settings?.paymentAccounts || DEFAULT_PAYMENT_ACCOUNTS;
+  const pickedAccount = selectedManualAccountId ? rawAccounts[selectedManualAccountId] : null;
 
   const u = getUser() || { id: 'usr_' + Date.now(), name: 'Customer', phone: sender };
   const addFundsRecord = {
@@ -4011,7 +4558,10 @@ function submitManualAddFunds(method, amount, totalCoins) {
     coins: totalCoins,
     method: method.toUpperCase(),
     type: 'MANUAL_VERIFY',
-    mode: 'MANUAL_SEND_MONEY',
+    mode: pickedAccount ? (pickedAccount.type || 'SEND_MONEY') : 'MANUAL_SEND_MONEY',
+    targetAccountId: selectedManualAccountId || '',
+    targetNumber: pickedAccount ? pickedAccount.number : '',
+    targetLabel: pickedAccount ? pickedAccount.label : '',
     trxId: trx,
     status: 'PENDING',
     ts: Date.now()
@@ -4455,6 +5005,10 @@ window.toggleWishlist = toggleWishlist;
 window.loadWalletLedger = loadWalletLedger;
 window.gatewayStepBack = gatewayStepBack;
 window.renderGatewayModalView = renderGatewayModalView;
+window.copyCleanNumberOnly = copyCleanNumberOnly;
+window.renderHeroSection = renderHeroSection;
+window.selectManualAccount = selectManualAccount;
+window.getQuickAccountSnippetsHTML = getQuickAccountSnippetsHTML;
 </script>
 </body>
 </html>

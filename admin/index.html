@@ -443,6 +443,64 @@ input, select, textarea { font-family: inherit; font-size: 13.5px; color: var(--
   animation: aToastIn .3s ease;
 }
 @keyframes aToastIn { from { opacity: 0; transform: translateY(-10px); } }
+
+/* Mobile-first ergonomics for Admin */
+@media (max-width: 768px) {
+  .admin-topbar { padding: 10px 14px; }
+  .data-card { padding: 14px; border-radius: 16px; margin-bottom: 14px; }
+  .card-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .item-row { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; }
+  .item-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; width: 100%; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-row { grid-template-columns: 1fr !important; gap: 0; }
+  .admin-modal-box { padding: 16px; border-radius: 18px; max-height: 94vh; }
+}
+
+/* Payment Accounts Badges */
+.pay-acc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.pay-acc-badge.bkash { background: rgba(226, 19, 110, 0.15); color: #ff3385; border: 1px solid rgba(226, 19, 110, 0.35); }
+.pay-acc-badge.nagad { background: rgba(246, 146, 30, 0.15); color: #f6921e; border: 1px solid rgba(246, 146, 30, 0.35); }
+.pay-acc-badge.rocket { background: rgba(140, 45, 175, 0.15); color: #c084fc; border: 1px solid rgba(140, 45, 175, 0.35); }
+.pay-acc-badge.upay { background: rgba(0, 242, 254, 0.15); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.35); }
+.pay-acc-badge.binance { background: rgba(243, 186, 47, 0.15); color: #f3ba2f; border: 1px solid rgba(243, 186, 47, 0.35); }
+
+.type-pill-send { background: rgba(0, 245, 160, 0.12); color: var(--accent); border: 1px solid rgba(0, 245, 160, 0.3); font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
+.type-pill-cashout { background: rgba(255, 170, 0, 0.12); color: #ffa726; border: 1px solid rgba(255, 170, 0, 0.3); font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
+.type-pill-merchant { background: rgba(0, 242, 254, 0.12); color: var(--primary); border: 1px solid rgba(0, 242, 254, 0.3); font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background-color: rgba(255,255,255,0.15);
+  border-radius: 24px;
+  transition: .3s;
+}
+.toggle-slider:before {
+  position: absolute; content: "";
+  height: 18px; width: 18px;
+  left: 3px; bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .3s;
+}
+.toggle-switch input:checked + .toggle-slider { background-color: var(--accent); }
+.toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
 </style>
 </head>
 <body>
@@ -1707,55 +1765,412 @@ function toggleUserSuspension(userId) {
   });
 }
 
-/* ==================== TAB 10: SETTINGS & GATEWAYS ==================== */
+/* ==================== DEFAULT FALLBACK CONFIGS ==================== */
+const DEFAULT_PAYMENT_ACCOUNTS = {
+  acc_bkash_send: {
+    id: 'acc_bkash_send',
+    provider: 'bkash',
+    type: 'SEND_MONEY',
+    number: '01888123456',
+    label: 'Primary bKash Personal',
+    limit: 'Send Money only • Limit: 25,000৳ • 24/7 Active',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_bkash_cashout: {
+    id: 'acc_bkash_cashout',
+    provider: 'bkash',
+    type: 'CASH_OUT',
+    number: '01888987654',
+    label: 'bKash Agent (Cash Out)',
+    limit: 'Cash Out only • Use Agent Option • 24/7 Active',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_nagad_send: {
+    id: 'acc_nagad_send',
+    provider: 'nagad',
+    type: 'SEND_MONEY',
+    number: '01999123456',
+    label: 'Nagad Personal (Send Money)',
+    limit: 'Send Money only • Instant Auto-Credit',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_nagad_cashout: {
+    id: 'acc_nagad_cashout',
+    provider: 'nagad',
+    type: 'CASH_OUT',
+    number: '01999876543',
+    label: 'Nagad Agent (Cash Out)',
+    limit: 'Agent Cash Out • Immediate Settlement',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_rocket_send: {
+    id: 'acc_rocket_send',
+    provider: 'rocket',
+    type: 'SEND_MONEY',
+    number: '017771234567',
+    label: 'DBBL Rocket Personal',
+    limit: '12-digit DBBL number • Send Money',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_binance: {
+    id: 'acc_binance',
+    provider: 'binance',
+    type: 'SEND_MONEY',
+    number: '75421939',
+    label: 'Binance Pay UID (USDT)',
+    limit: 'Binance Pay ID: 75421939 • Zero Gas Fee',
+    active: true,
+    updatedAt: Date.now()
+  }
+};
+
+const DEFAULT_HERO_VIDEO = {
+  enabled: true,
+  youtubeUrl: 'https://www.youtube.com/watch?v=ysz5S6PUM-U',
+  videoId: 'ysz5S6PUM-U',
+  title: 'BUY & SELL DOLLAR & GAME TOP-UPS INSTANTLY',
+  subtitle: 'Instant USDT, Payeer & Binance Pay cashout via bKash/Nagad. Free Fire Diamond Top-Up, PUBG UC & Premium Accounts in seconds.',
+  badge: '#1 RATED DIGITAL MARKETPLACE & DOLLAR DESK'
+};
+
+function extractYouTubeId(urlOrId) {
+  if (!urlOrId) return 'ysz5S6PUM-U';
+  const str = String(urlOrId).trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return str;
+  const match = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+  return match ? match[1] : 'ysz5S6PUM-U';
+}
+
+/* ==================== TAB 10: SETTINGS, GATEWAYS & HERO VIDEO ==================== */
 function renderSettingsTab() {
-  const pNums = AdminState.settings.paymentNumbers || {};
+  const s = AdminState.settings || {};
+  const rawAccounts = s.paymentAccounts || DEFAULT_PAYMENT_ACCOUNTS;
+  const accountsList = Object.entries(rawAccounts).map(([id, a]) => ({ id, ...a }));
+
+  const hero = { ...DEFAULT_HERO_VIDEO, ...(s.heroVideo || {}) };
+  const heroVidId = extractYouTubeId(hero.youtubeUrl || hero.videoId);
+
+  const brand = s.brand || { name: 'NEXUS DIGITAL', tagline: 'World-Class Digital Marketplace' };
+  const contact = s.contact || { whatsapp: '01888123456', telegram: '@nexusdigital', supportEmail: 'support@nexus.io' };
+
   return `
+    <!-- SECTION 1: UNLIMITED PAYMENT NUMBERS (BKASH / NAGAD / ROCKET / BINANCE) -->
     <div class="data-card">
       <div class="card-head">
-        <h3><i class="fa-solid fa-money-bill-wave"></i>Payment Gateway Accounts</h3>
-        <button class="btn btn-primary btn-sm" onclick="saveSettings()"><i class="fa-solid fa-save"></i> Save Gateway Accounts</button>
+        <div>
+          <h3><i class="fa-solid fa-mobile-screen-button" style="color:var(--primary);"></i>bKash &amp; Nagad Payment Accounts (Unlimited Numbers)</h3>
+          <span style="font-size:12px; color:var(--muted);">${accountsList.length} numbers configured • Support unlimited Send Money &amp; Cash Out</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openPaymentAccountModal('')">
+          <i class="fa-solid fa-plus"></i> + Add New Payment Number
+        </button>
       </div>
+
+      <p style="font-size:12px; color:var(--muted); margin-bottom:16px;">
+        Add as many Send Money (Personal) or Cash Out (Agent) numbers as you need. Active accounts appear instantly in the user panel with 1-click clean number copying.
+      </p>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        ${accountsList.map(item => {
+          const isBkash = item.provider === 'bkash';
+          const isNagad = item.provider === 'nagad';
+          const isRocket = item.provider === 'rocket';
+          const isBinance = item.provider === 'binance';
+          const isUpay = item.provider === 'upay';
+
+          const provClass = isBkash ? 'bkash' : isNagad ? 'nagad' : isRocket ? 'rocket' : isBinance ? 'binance' : 'upay';
+          const provName = isBkash ? 'bKash' : isNagad ? 'Nagad' : isRocket ? 'Rocket' : isBinance ? 'Binance Pay' : 'Upay';
+          const provIcon = isBkash ? 'fa-mobile-screen-button' : isNagad ? 'fa-fire-flame-curved' : isRocket ? 'fa-building-columns' : isBinance ? 'fa-bitcoin' : 'fa-wallet';
+
+          const isSend = (item.type || 'SEND_MONEY') === 'SEND_MONEY';
+          const isCashout = (item.type || '') === 'CASH_OUT';
+          const typeLabel = isSend ? '⚡ Send Money (Personal)' : isCashout ? '🏪 Cash Out (Agent)' : '💳 Merchant (Payment)';
+          const typeClass = isSend ? 'type-pill-send' : isCashout ? 'type-pill-cashout' : 'type-pill-merchant';
+
+          const isActive = item.active !== false;
+
+          return `
+            <div class="item-row" style="align-items:center; padding:14px 16px;">
+              <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+                <span class="pay-acc-badge ${provClass}"><i class="fa-solid ${provIcon}"></i> ${provName}</span>
+                <span class="${typeClass}">${typeLabel}</span>
+              </div>
+
+              <div class="item-info" style="margin:0 12px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                  <b style="font-size:16px; font-family:var(--mono); color:#fff; letter-spacing:1px;">${esc(item.number)}</b>
+                  <span style="font-size:12px; color:var(--muted); font-weight:600;">• ${esc(item.label || '')}</span>
+                </div>
+                <div class="item-sub" style="margin-top:2px;">
+                  <span>${esc(item.limit || '24/7 Active')}</span>
+                  <span>Status: <b style="color:${isActive ? 'var(--accent)' : 'var(--danger)'};">${isActive ? 'ACTIVE (SHOWING TO USERS)' : 'DEACTIVATED (HIDDEN)'}</b></span>
+                </div>
+              </div>
+
+              <div class="item-actions" style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                <!-- 1-Click Toggle -->
+                <button class="btn ${isActive ? 'btn-success' : 'btn-glass'} btn-sm" onclick="togglePaymentAccountActive('${esc(item.id)}')">
+                  <i class="fa-solid ${isActive ? 'fa-toggle-on' : 'fa-toggle-off'}"></i> ${isActive ? 'Active' : 'Disabled'}
+                </button>
+                <button class="btn btn-glass btn-sm" onclick="openPaymentAccountModal('${esc(item.id)}')">
+                  <i class="fa-solid fa-pen"></i> Edit
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deletePaymentAccount('${esc(item.id)}')">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- SECTION 2: 3D ANIMATED YOUTUBE VIDEO HERO CONTROLS -->
+    <div class="data-card">
+      <div class="card-head">
+        <div>
+          <h3><i class="fa-brands fa-youtube" style="color:#ff0033;"></i>3D Animated YouTube Video Hero</h3>
+          <span style="font-size:12px; color:var(--muted);">Cinematic background video hero with autoplay, mute, and looping</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveHeroVideoSettings()">
+          <i class="fa-solid fa-save"></i> Save Video Hero Settings
+        </button>
+      </div>
+
       <div class="form-row">
         <div class="form-field">
-          <label>bKash Personal Number</label>
-          <input id="setBkashPersonal" value="${esc(pNums.bkashPersonal || '01888123456')}">
+          <label>Video Hero Display Mode</label>
+          <select id="heroEnabled">
+            <option value="true" ${hero.enabled !== false ? 'selected' : ''}>⚡ Enabled: Show 3D YouTube Video Hero (Cinematic)</option>
+            <option value="false" ${hero.enabled === false ? 'selected' : ''}>Standard: Show High-Res Animated Graphic Banner</option>
+          </select>
         </div>
         <div class="form-field">
-          <label>bKash Merchant / Agent (API Simulation)</label>
-          <input id="setBkashMerchant" value="${esc(pNums.bkashMerchant || '01888123456')}">
+          <label>YouTube Video URL or Video ID</label>
+          <input id="heroYoutubeUrl" value="${esc(hero.youtubeUrl || 'https://www.youtube.com/watch?v=ysz5S6PUM-U')}" placeholder="https://www.youtube.com/watch?v=..." oninput="updateHeroPreview()">
         </div>
       </div>
+
       <div class="form-row">
         <div class="form-field">
-          <label>Nagad Personal Number</label>
-          <input id="setNagad" value="${esc(pNums.nagad || '01999123456')}">
+          <label>Hero Headline (3D Title)</label>
+          <input id="heroTitle" value="${esc(hero.title || 'BUY & SELL DOLLAR & GAME TOP-UPS INSTANTLY')}">
         </div>
         <div class="form-field">
-          <label>Rocket Number (DBBL)</label>
-          <input id="setRocket" value="${esc(pNums.rocket || '01777123456')}">
+          <label>Hero Badge Pill</label>
+          <input id="heroBadge" value="${esc(hero.badge || '#1 RATED DIGITAL MARKETPLACE & DOLLAR DESK')}">
         </div>
       </div>
+
       <div class="form-field">
-        <label>Binance Pay ID / USDT TRC20 Address</label>
-        <input id="setBinancePay" value="${esc(pNums.binancePayId || '75421939')}">
+        <label>Hero Subtitle / Description</label>
+        <textarea id="heroSubtitle" rows="2">${esc(hero.subtitle || 'Instant USDT, Payeer & Binance Pay cashout via bKash/Nagad. Free Fire Diamond Top-Up, PUBG UC & Premium Accounts in seconds.')}</textarea>
+      </div>
+
+      <!-- Live Video Preview Player -->
+      <div style="margin-top:14px; background:rgba(0,0,0,0.5); border:1px solid var(--border); border-radius:16px; padding:16px;">
+        <label style="display:block; font-size:11px; font-weight:800; text-transform:uppercase; color:var(--muted); margin-bottom:8px;">
+          Live Video Hero Player Preview:
+        </label>
+        <div style="position:relative; width:100%; aspect-ratio:16/9; max-height:280px; overflow:hidden; border-radius:12px; background:#000;">
+          <iframe id="heroPreviewIframe"
+            src="https://www.youtube-nocookie.com/embed/${heroVidId}?autoplay=1&mute=1&loop=1&playlist=${heroVidId}&controls=0&showinfo=0&rel=0&playsinline=1"
+            style="width:100%; height:100%; border:none;"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+          </iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: BRAND & SUPPORT CHANNELS -->
+    <div class="data-card">
+      <div class="card-head">
+        <h3><i class="fa-solid fa-headset" style="color:var(--accent);"></i>Brand &amp; Live Support Channels</h3>
+        <button class="btn btn-primary btn-sm" onclick="saveBrandSettings()"><i class="fa-solid fa-save"></i> Save Brand Info</button>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>Brand Name</label>
+          <input id="brandName" value="${esc(brand.name || 'NEXUS DIGITAL')}">
+        </div>
+        <div class="form-field">
+          <label>Brand Tagline</label>
+          <input id="brandTagline" value="${esc(brand.tagline || 'World-Class Digital Marketplace')}">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>WhatsApp Support Number (without +)</label>
+          <input id="supportWhatsapp" value="${esc(contact.whatsapp || '8801888123456')}" placeholder="88018XXXXXXXX">
+        </div>
+        <div class="form-field">
+          <label>Telegram Support Username</label>
+          <input id="supportTelegram" value="${esc(contact.telegram || '@nexusdigital')}" placeholder="@username">
+        </div>
       </div>
     </div>
   `;
 }
 
-function saveSettings() {
-  const pNums = {
-    bkashPersonal: $('#setBkashPersonal').value.trim(),
-    bkashMerchant: $('#setBkashMerchant').value.trim(),
-    nagad: $('#setNagad').value.trim(),
-    rocket: $('#setRocket').value.trim(),
-    binancePayId: $('#setBinancePay').value.trim()
+function updateHeroPreview() {
+  const url = $('#heroYoutubeUrl')?.value.trim();
+  const id = extractYouTubeId(url);
+  const iframe = $('#heroPreviewIframe');
+  if (iframe) {
+    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&showinfo=0&rel=0&playsinline=1`;
+  }
+}
+
+function saveHeroVideoSettings() {
+  const url = $('#heroYoutubeUrl').value.trim();
+  const videoId = extractYouTubeId(url);
+  const heroData = {
+    enabled: $('#heroEnabled').value === 'true',
+    youtubeUrl: url,
+    videoId: videoId,
+    title: $('#heroTitle').value.trim(),
+    subtitle: $('#heroSubtitle').value.trim(),
+    badge: $('#heroBadge').value.trim(),
+    updatedAt: Date.now()
   };
 
-  DB.ref('settings/paymentNumbers').set(pNums).then(() => {
-    admToast('Gateway settings saved successfully!');
+  DB.ref('settings/heroVideo').set(heroData).then(() => {
+    admToast('3D YouTube Video Hero settings saved and live!');
   });
+}
+
+function saveBrandSettings() {
+  const brand = {
+    name: $('#brandName').value.trim() || 'NEXUS DIGITAL',
+    tagline: $('#brandTagline').value.trim() || 'World-Class Digital Marketplace'
+  };
+  const contact = {
+    whatsapp: $('#supportWhatsapp').value.trim(),
+    telegram: $('#supportTelegram').value.trim(),
+    supportEmail: 'support@nexus.io'
+  };
+
+  Promise.all([
+    DB.ref('settings/brand').set(brand),
+    DB.ref('settings/contact').set(contact)
+  ]).then(() => {
+    admToast('Brand and support settings updated!');
+  });
+}
+
+/* ==================== PAYMENT ACCOUNTS MODAL & CRUD ==================== */
+function openPaymentAccountModal(id) {
+  const rawAccounts = AdminState.settings?.paymentAccounts || DEFAULT_PAYMENT_ACCOUNTS;
+  const a = id ? (rawAccounts[id] || {}) : {};
+
+  openAdminModal(`
+    <h3 style="margin-bottom:14px;"><i class="fa-solid fa-mobile-screen-button" style="color:var(--primary); margin-right:8px;"></i>${id ? 'Edit Payment Number' : 'Add New Payment Number'}</h3>
+
+    <div class="form-row">
+      <div class="form-field">
+        <label>Payment Provider / Gateway</label>
+        <select id="accProvider">
+          <option value="bkash" ${a.provider === 'bkash' ? 'selected' : ''}>bKash (Pink)</option>
+          <option value="nagad" ${a.provider === 'nagad' ? 'selected' : ''}>Nagad (Orange)</option>
+          <option value="rocket" ${a.provider === 'rocket' ? 'selected' : ''}>Rocket DBBL (Purple)</option>
+          <option value="binance" ${a.provider === 'binance' ? 'selected' : ''}>Binance Pay (Crypto/USDT)</option>
+          <option value="upay" ${a.provider === 'upay' ? 'selected' : ''}>Upay (UCB)</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Account Type</label>
+        <select id="accType">
+          <option value="SEND_MONEY" ${a.type === 'SEND_MONEY' || !a.type ? 'selected' : ''}>⚡ Send Money (Personal Number)</option>
+          <option value="CASH_OUT" ${a.type === 'CASH_OUT' ? 'selected' : ''}>🏪 Cash Out (Agent Number)</option>
+          <option value="MERCHANT" ${a.type === 'MERCHANT' ? 'selected' : ''}>💳 Merchant (Make Payment)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-field">
+      <label>Mobile Number / Wallet ID (Clean Digits Only)</label>
+      <input id="accNumber" value="${esc(a.number || '')}" placeholder="e.g. 01888123456 or 75421939" style="font-size:16px; font-weight:800; font-family:var(--mono);">
+    </div>
+
+    <div class="form-row">
+      <div class="form-field">
+        <label>Account Label / Friendly Name</label>
+        <input id="accLabel" value="${esc(a.label || '')}" placeholder="e.g. Primary bKash Personal">
+      </div>
+      <div class="form-field">
+        <label>Status</label>
+        <select id="accActive">
+          <option value="true" ${a.active !== false ? 'selected' : ''}>Active (Show to Users)</option>
+          <option value="false" ${a.active === false ? 'selected' : ''}>Deactivated (Hidden)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-field">
+      <label>Transaction Limits &amp; Instructions</label>
+      <input id="accLimit" value="${esc(a.limit || 'Send Money only • Limit: 25,000৳ • 24/7 Active')}" placeholder="Instructions shown on payment screen">
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+      <button class="btn btn-glass" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="savePaymentAccount('${id}')"><i class="fa-solid fa-save"></i> Save Number</button>
+    </div>
+  `);
+}
+
+function savePaymentAccount(id) {
+  const number = $('#accNumber').value.trim();
+  if (!number) return alert('Please enter a valid phone number or account UID!');
+
+  const key = id || ('acc_' + Date.now().toString(36));
+  const accountData = {
+    id: key,
+    provider: $('#accProvider').value,
+    type: $('#accType').value,
+    number: number,
+    label: $('#accLabel').value.trim() || `${$('#accProvider').value.toUpperCase()} Account`,
+    limit: $('#accLimit').value.trim() || '24/7 Active',
+    active: $('#accActive').value === 'true',
+    updatedAt: Date.now()
+  };
+
+  // Save to settings/paymentAccounts
+  DB.ref('settings/paymentAccounts/' + key).set(accountData).then(() => {
+    // Also sync to legacy settings/paymentNumbers for backwards compatibility
+    const syncObj = {};
+    if (accountData.provider === 'bkash' && accountData.type === 'SEND_MONEY') syncObj.bkashPersonal = accountData.number;
+    if (accountData.provider === 'bkash' && accountData.type !== 'SEND_MONEY') syncObj.bkashMerchant = accountData.number;
+    if (accountData.provider === 'nagad') syncObj.nagad = accountData.number;
+    if (accountData.provider === 'rocket') syncObj.rocket = accountData.number;
+    if (accountData.provider === 'binance') syncObj.binancePayId = accountData.number;
+    if (Object.keys(syncObj).length) DB.ref('settings/paymentNumbers').update(syncObj);
+
+    closeAdminModal();
+    admToast('Payment number saved and synced live!');
+  });
+}
+
+function togglePaymentAccountActive(id) {
+  const rawAccounts = AdminState.settings?.paymentAccounts || DEFAULT_PAYMENT_ACCOUNTS;
+  const current = rawAccounts[id] || {};
+  const newActive = current.active === false ? true : false;
+
+  DB.ref('settings/paymentAccounts/' + id + '/active').set(newActive).then(() => {
+    admToast(newActive ? 'Payment number activated!' : 'Payment number disabled');
+  });
+}
+
+function deletePaymentAccount(id) {
+  if (confirm('Permanently delete this payment number?')) {
+    DB.ref('settings/paymentAccounts/' + id).remove().then(() => {
+      admToast('Payment number removed');
+    });
+  }
 }
 
 /* ==================== SEED DEMO CATALOG ==================== */
@@ -1795,7 +2210,9 @@ function seedDemoCatalog() {
   DB.ref('settings/dollarRates').set(defaultRates);
   DB.ref('reviews').set(demoReviews);
   DB.ref('settings/coupons').set(demoCoupons);
-  admToast('Demo products, rates, reviews, and coupons seeded!');
+  DB.ref('settings/paymentAccounts').set(DEFAULT_PAYMENT_ACCOUNTS);
+  DB.ref('settings/heroVideo').set(DEFAULT_HERO_VIDEO);
+  admToast('Demo products, rates, reviews, payment numbers, and YouTube hero seeded!');
 }
 
 /* ==================== TAB SWITCHER ==================== */
@@ -1914,7 +2331,13 @@ window.saveCoupon = saveCoupon;
 window.deleteCoupon = deleteCoupon;
 window.adjustUserCoins = adjustUserCoins;
 window.toggleUserSuspension = toggleUserSuspension;
-window.saveSettings = saveSettings;
+window.openPaymentAccountModal = openPaymentAccountModal;
+window.savePaymentAccount = savePaymentAccount;
+window.togglePaymentAccountActive = togglePaymentAccountActive;
+window.deletePaymentAccount = deletePaymentAccount;
+window.saveHeroVideoSettings = saveHeroVideoSettings;
+window.updateHeroPreview = updateHeroPreview;
+window.saveBrandSettings = saveBrandSettings;
 window.seedDemoCatalog = seedDemoCatalog;
 window.closeAdminModal = closeAdminModal;
 </script>
