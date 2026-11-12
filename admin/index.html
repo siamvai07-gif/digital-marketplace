@@ -1027,6 +1027,16 @@ let auth = null;
 try {
   if (typeof firebase !== 'undefined') {
     firebase.initializeApp(firebaseConfig);
+    // Force long-polling so the Realtime Database still receives live updates when
+    // WebSockets are blocked (some proxies, corporate networks, and serverless hosts).
+    // In the v8 SDK this is an INTERNAL namespace call, not a config option —
+    // `experimentalForceLongPolling` belongs to v9 Firestore and does nothing here.
+    try {
+      if (firebase.database && firebase.database.INTERNAL &&
+          typeof firebase.database.INTERNAL.forceLongPolling === 'function') {
+        firebase.database.INTERNAL.forceLongPolling();
+      }
+    } catch (e) { /* transport stays on its default */ }
     DB = firebase.database();
     if (typeof firebase.auth === 'function') {
       auth = firebase.auth();

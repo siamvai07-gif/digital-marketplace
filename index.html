@@ -2799,6 +2799,16 @@ let fbOK = false;
 try {
   if (typeof firebase !== 'undefined') {
     firebase.initializeApp(firebaseConfig);
+    // Force long-polling so the Realtime Database still receives live updates when
+    // WebSockets are blocked (some proxies, corporate networks, and serverless hosts).
+    // In the v8 SDK this is an INTERNAL namespace call, not a config option —
+    // `experimentalForceLongPolling` belongs to v9 Firestore and does nothing here.
+    try {
+      if (firebase.database && firebase.database.INTERNAL &&
+          typeof firebase.database.INTERNAL.forceLongPolling === 'function') {
+        firebase.database.INTERNAL.forceLongPolling();
+      }
+    } catch (e) { /* transport stays on its default */ }
     DB = firebase.database();
     if (typeof firebase.auth === 'function') {
       auth = firebase.auth();
@@ -3073,7 +3083,13 @@ function getUser() {
 }
 
 function setUser(u) {
+  const prevId = State.user && State.user.id;
   State.user = u;
+  // The live orders cache is scoped to a user; drop it when the identity changes
+  // so one account can never render another's orders.
+  if ((u && u.id) !== prevId) {
+    _ordersLiveCache = null;
+  }
   if (u) {
     // Never persist credential material in the browser session.
     const safe = { ...u };
@@ -4196,6 +4212,52 @@ function createOrderRecord(order) {
   return null;
 }
 
+// Live copy of this customer's orders, kept fresh by a persistent listener so an
+// admin fulfilment appears without a refresh.
+let _ordersLiveCache = null;
+let _ordersLiveCacheUid = null;
+
+function startUserOrdersListener() {
+  if (!fbOK || !DB || !State.user || !State.user.id) return;
+  const uid = State.user.id;
+  saveUserOrdersListenerRef(uid);
+  DB.ref('orders').on('value', snap => {
+    const val = snap.val();
+    const all = val ? Object.entries(val).map(([id, o]) => ({ id, ...o })) : [];
+    const u = getUser();
+    _ordersLiveCacheUid = u && u.id;
+    _ordersLiveCache = all
+      .filter(o => (o.userId && u && o.userId === u.id) || (o.userPhone && u && u.phone && o.userPhone === u.phone))
+      .sort((a, b) => Number(b.ts || b.createdAt || 0) - Number(a.ts || a.createdAt || 0));
+    // Re-render only when the orders view is the active route.
+    if (parseRoute().page === 'orders') renderOrdersListFromCache();
+  }, () => { _ordersLiveCache = null; });
+}
+
+let _ordersListenerUid = null;
+function saveUserOrdersListenerRef(uid) {
+  try {
+    if (_ordersListenerUid && _ordersListenerUid !== uid && DB) {
+      DB.ref('orders').off();
+    }
+  } catch (e) { /* listener already gone */ }
+  _ordersListenerUid = uid;
+}
+
+function stopUserOrdersListener() {
+  try { if (DB) DB.ref('orders').off(); } catch (e) { /* already detached */ }
+  _ordersListenerUid = null;
+  _ordersLiveCache = null;
+  _ordersLiveCacheUid = null;
+}
+
+function renderOrdersListFromCache() {
+  // Rebuilds the orders view from the live cache. Safe to call on every push:
+  // it only runs while the orders route is active.
+  const view = $('#appView');
+  if (view && parseRoute().page === 'orders') renderOrdersView(view);
+}
+
 // Load this customer's orders (from Firebase when available, else local cache).
 function loadUserOrders(callback) {
   const u = getUser();
@@ -4775,6 +4837,7 @@ function executeFastGuestLogin() {
 function finishAuthSuccess(u) {
   setUser(u);
   if (fbOK && u.id) listenUserWallet(u.id);
+  if (fbOK && u.id) startUserOrdersListener();
   closeModal();
   confetti({ particleCount: 80, spread: 70 });
   toast(`Welcome back, ${u.name}!`, 'ok');
@@ -4789,6 +4852,7 @@ function handleSignOut() {
       DB.ref('customers/' + State.user.id).off();
     }
   } catch (e) { /* listener already detached */ }
+  stopUserOrdersListener();
   LS.set('nx_user', null);
   State.user = null;
   closeModal();
@@ -6362,6 +6426,7 @@ function boot() {
   const u = getUser();
   if (u && u.id) {
     listenUserWallet(u.id);
+    startUserOrdersListener();
     // Re-validate the account state so a suspended user cannot keep using the app.
     DB.ref('customers/' + u.id + '/status').once('value', snap => {
       if (String(snap.val() || '').toUpperCase() === 'SUSPENDED') {
