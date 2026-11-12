@@ -1,18 +1,98 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Netlify configuration — NEXUS DIGITAL marketplace
+#
+# The app is a *static* Vite build (no Node/Express server in production, no
+# serverless functions): the storefront and admin panel talk directly to the
+# Firebase Realtime Database from the browser. `server.ts` is a local dev
+# convenience only and is never used by Netlify.
+# ─────────────────────────────────────────────────────────────────────────────
+
 [build]
-  command = "npm run build"
+  # Lint (tsc) runs first so a type/bundler-config error fails the deploy
+  # instead of shipping a broken site.
+  command = "npm run lint && npm run build"
   publish = "dist"
 
-[[redirects]]
-  from = "/admin/*"
-  to = "/admin/index.html"
-  status = 200
+[build.environment]
+  # Vite 8 requires Node ^20.19 || >=22.12 — pin to the current 22.x line so the
+  # build image never falls back to an unsupported Node.
+  NODE_VERSION = "22"
+  # vite / typescript are devDependencies. --include=dev guarantees they are
+  # installed even if the build image exports NODE_ENV=production.
+  NPM_FLAGS = "--include=dev --no-audit --no-fund"
 
+# ───────────────────────────── Redirects / SPA routing ───────────────────────
+# Netlify serves an existing static file before applying a non-forced redirect,
+# which is what keeps the rules below from looping on /admin/index.html.
+# Order matters: first match wins, so admin rules must precede the SPA catch-all.
+
+# /admin  →  the admin console (no trailing slash)
 [[redirects]]
   from = "/admin"
   to = "/admin/index.html"
   status = 200
 
+# Any other /admin/* path → the admin console shell
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/index.html"
+  status = 200
+
+# Hash routing means the storefront only needs /index.html for unknown paths.
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# ──────────────────────────────── Caching ────────────────────────────────────
+# NOTE: this build emits no content-hashed bundles — /assets/ holds the
+# manually-named product/promo images from public/. They are therefore NOT
+# safe to mark `immutable`, or replacing an image would never reach returning
+# visitors. Cache for a day and let it revalidate in the background.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, stale-while-revalidate=604800"
+
+# HTML entry points must revalidate so new deploys are picked up immediately.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/admin/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# "/admin/*" only matches the slash form, so cover the bare path explicitly.
+[[headers]]
+  for = "/admin"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+
+[[headers]]
+  for = "/_redirects"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# ─────────────────────────── Security headers ────────────────────────────────
+# SAMEORIGIN (not DENY) so the site can still be embedded in the editor/preview
+# pane while blocking third-party framing.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=(), payment=()"
+    # Legacy XSS auditor: explicitly disabled (deprecated and exploitable in some browsers).
+    X-XSS-Protection = "0"
+
+# The admin console is an operator surface: keep it out of search engines and
+# never let it be cached by shared proxies.
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive"

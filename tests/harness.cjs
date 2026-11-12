@@ -10,6 +10,8 @@ const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
+// Allow booting the production build (dist/) instead of the source HTML.
+const DIST_ROOT = path.join(REPO_ROOT, 'dist');
 
 const FIREBASE_MOCK = String.raw`
 (function(){
@@ -51,11 +53,12 @@ const FIREBASE_MOCK = String.raw`
 
 /**
  * @param {'index.html'|'admin/index.html'} file
- * @param {object} opts { store, url }
+ * @param {object} opts { store, url, fromDist }
  */
 function boot(file, opts = {}) {
   const store = opts.store || {};
-  let html = fs.readFileSync(path.join(REPO_ROOT, file), 'utf8');
+  const baseDir = opts.fromDist ? DIST_ROOT : REPO_ROOT;
+  let html = fs.readFileSync(path.join(baseDir, file), 'utf8');
   html = html.replace(/<head>/i, '<head><script>' + FIREBASE_MOCK + '</script>');
   // Strip real CDN scripts; the mock replaces them.
   html = html.replace(/<script src="https:\/\/www\.gstatic[^"]*"><\/script>/g, '');
@@ -109,4 +112,4 @@ function boot(file, opts = {}) {
   return { dom, win, doc, store: win.__FB_STORE, errors, setValue, click, toasts, sleep };
 }
 
-module.exports = { boot, FIREBASE_MOCK, REPO_ROOT };
+module.exports = { boot, FIREBASE_MOCK, REPO_ROOT, DIST_ROOT };
