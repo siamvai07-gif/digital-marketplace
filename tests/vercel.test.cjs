@@ -108,12 +108,19 @@ function main() {
     check('storefront build is the storefront', !/NEXUS ADMIN PORTAL/i.test(storeHtml));
     check('admin key not in admin bundle', !/SIAMVIP/.test(adminHtml));
     check('admin key not in storefront bundle', !/SIAMVIP/.test(storeHtml));
-    check('long-polling transport enabled in storefront',
-      /forceLongPolling/.test(storeHtml));
-    check('long-polling transport enabled in admin',
-      /forceLongPolling/.test(adminHtml));
-    check('firebase project wired to banglabet-blitz',
-      /banglabet-blitz/.test(storeHtml) && /banglabet-blitz/.test(adminHtml));
+    check('no Firebase SDK referenced',
+      !/firebasejs|gstatic\.com\/firebase/.test(storeHtml) && !/firebasejs|gstatic\.com\/firebase/.test(adminHtml));
+    check('Supabase data layer loaded in storefront',
+      /vendor\/nexus-db\.js/.test(storeHtml));
+    check('Supabase data layer loaded in admin',
+      /vendor\/nexus-db\.js/.test(adminHtml));
+    check('Supabase client loaded in both panels',
+      /vendor\/supabase\.js/.test(storeHtml) && /vendor\/supabase\.js/.test(adminHtml));
+    check('vendor bundles shipped to dist',
+      fs.existsSync(path.join(DIST, 'vendor', 'supabase.js')) &&
+      fs.existsSync(path.join(DIST, 'vendor', 'nexus-db.js')));
+    check('realtime client configured against the Supabase project',
+      /hvntegcbrjffkwlbkrba/.test(fs.readFileSync(path.join(DIST, 'vendor', 'nexus-db.js'), 'utf8')));
     check('no localhost URLs in shipped build',
       !/localhost|127\.0\.0\.1/.test(storeHtml) && !/localhost|127\.0\.0\.1/.test(adminHtml));
   }

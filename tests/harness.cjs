@@ -1,8 +1,8 @@
 /**
- * Shared jsdom + Firebase RTDB mock harness.
+ * Shared jsdom + Supabase data-layer mock harness.
  *
  * Boots index.html (storefront) or admin/index.html in JSDOM with a fake
- * Firebase v8 Realtime Database so every user/admin workflow can be executed
+ * Supabase-shaped data layer (public/vendor/nexus-db.js API) so every user/admin workflow can be executed
  * headlessly. Pass a store object to share one database between pages.
  */
 const fs = require('fs');
@@ -43,9 +43,8 @@ const FIREBASE_MOCK = String.raw`
   Ref.prototype.startAt=function(){return this;};
   // Stub Auth. SIGNIN_MODE drives the outcome so tests can exercise the real
   // admin sign-in path: 'ok-admin', 'ok-nonadmin', 'bad', 'offline'.
-  var authObj={currentUser:null,onAuthStateChanged:function(cb){setTimeout(function(){cb(null)},0);},
-    signInAnonymously:function(){return Promise.resolve({user:{uid:'anon-test'}});},
-    // Key-only admin login: the access key is the password of a dedicated account.
+  var authObj={currentUser:null,onAuthStateChanged:function(cb){setTimeout(function(){cb(null)},0);return function(){};},
+    signInAnonymously:function(){return Promise.reject(Object.assign(new Error('anon-disabled'),{code:'auth/anonymous-disabled'}));},
     signInWithEmailAndPassword:function(email,pass){
       var RUNNER = window.__RUNNER__ || {key:null, exists:true};
       var ADMIN = RUNNER.key || 'SIAMVIP';
@@ -61,7 +60,15 @@ const FIREBASE_MOCK = String.raw`
       return Promise.resolve({user:{uid:'u-admin',email:email}});
     },
     signOut:function(){return Promise.resolve();}};
-  window.firebase={initializeApp:function(){},database:function(){return {ref:function(p){return new Ref(p||'root');}};},auth:function(){return authObj;}};
+  // Supabase data layer mock. Mirrors public/vendor/nexus-db.js surface.
+  window.NexusDB={
+    ready:function(){return true;},
+    DB:{ref:function(p){return new Ref(p||'root');},goOnline:function(){},goOffline:function(){}},
+    auth:function(){return authObj;},
+    sb:function(){return null;},
+    _cache:{},
+    _fetchTable:function(){return Promise.resolve({});}
+  };
   window.confetti=window.confetti||function(){};
   window.matchMedia=window.matchMedia||function(){return {matches:false,addListener:function(){},removeListener:function(){},addEventListener:function(){},removeEventListener:function(){}};};
 })();
@@ -77,7 +84,7 @@ function boot(file, opts = {}) {
   let html = fs.readFileSync(path.join(baseDir, file), 'utf8');
   html = html.replace(/<head>/i, '<head><script>' + FIREBASE_MOCK + '</script>');
   // Strip real CDN scripts; the mock replaces them.
-  html = html.replace(/<script src="https:\/\/www\.gstatic[^"]*"><\/script>/g, '');
+  html = html.replace(/<script src="[^"]*vendor\/(supabase|nexus-db)\.js"><\/script>/g, '');
   html = html.replace(/<script src="https:\/\/cdn\.jsdelivr[^"]*"><\/script>/g, '');
 
   const errors = [];
