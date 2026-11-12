@@ -2,9 +2,25 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" id="adminViewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#060913">
 <meta name="robots" content="noindex,nofollow">
+<script>
+  (function() {
+    try {
+      const mode = localStorage.getItem('nexus_admin_display_mode');
+      if (mode === 'desktop') {
+        document.documentElement.classList.add('admin-desktop-mode');
+        const vp = document.getElementById('adminViewport');
+        if (vp) {
+          const sw = window.screen.width || 390;
+          const sc = Math.min(1.0, Math.max(0.25, (sw / 1240).toFixed(2)));
+          vp.setAttribute('content', 'width=1240, initial-scale=' + sc + ', minimum-scale=0.2, maximum-scale=3.0, user-scalable=yes');
+        }
+      }
+    } catch(e) {}
+  })();
+</script>
 <title>NEXUS ADMIN — Digital Marketplace &amp; Dollar Terminal</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%2300f2fe'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='%23060913' font-family='Arial' font-weight='900'>A</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -501,6 +517,128 @@ input, select, textarea { font-family: inherit; font-size: 13.5px; color: var(--
 }
 .toggle-switch input:checked + .toggle-slider { background-color: var(--accent); }
 .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+/* ==================== ONE-CLICK DESKTOP & MOBILE MODE ==================== */
+.desktop-mode-banner {
+  display: none;
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(90deg, #071329 0%, #0d1e3e 50%, #071329 100%);
+  border-bottom: 1px solid rgba(0, 245, 160, 0.35);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  padding: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.desktop-mode-banner .dmb-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #cbd5e1;
+}
+.desktop-mode-banner .dmb-left i { color: var(--accent); }
+.desktop-mode-banner .dmb-left b { color: #fff; }
+.desktop-mode-banner .dmb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  background: var(--grad-main);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+html.admin-desktop-mode,
+body.admin-desktop-mode {
+  min-width: 1240px !important;
+  width: 1240px !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-desktop-mode .admin-layout {
+  min-width: 1240px !important;
+  display: grid !important;
+  grid-template-columns: 260px 1fr !important;
+}
+.admin-desktop-mode #adminSidebar {
+  position: static !important;
+  transform: none !important;
+  width: 260px !important;
+}
+.admin-desktop-mode #sidebarToggle {
+  display: none !important;
+}
+.admin-desktop-mode .kpi-grid {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
+.admin-desktop-mode .item-row {
+  flex-direction: row !important;
+}
+.admin-desktop-mode .desktop-mode-banner {
+  display: flex !important;
+}
+
+/* Enhanced Mobile Responsiveness for Admin */
+@media (max-width: 767px) {
+  .admin-topbar {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .topbar-left h2 {
+    font-size: 15px;
+  }
+  .status-pill {
+    display: none;
+  }
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .kpi-card {
+    padding: 12px;
+    border-radius: 14px;
+  }
+  .kpi-val {
+    font-size: 20px;
+  }
+  .item-row {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px;
+    gap: 10px;
+  }
+  .item-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .admin-modal-wrap {
+    padding: 12px;
+    align-items: flex-end;
+  }
+  .admin-modal-box {
+    max-height: 90vh;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 16px;
+  }
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -520,6 +658,17 @@ input, select, textarea { font-family: inherit; font-size: 13.5px; color: var(--
       <i class="fa-solid fa-lock-open"></i>Enter Control Panel
     </button>
   </div>
+</div>
+
+<!-- One-Click Desktop Mode Active Alert / Quick Return Bar -->
+<div id="adminDesktopNotice" class="desktop-mode-banner">
+  <div class="dmb-left">
+    <i class="fa-solid fa-desktop"></i>
+    <span><b>Desktop Mode Active</b> (1240px wide admin layout)</span>
+  </div>
+  <button class="dmb-btn" onclick="toggleAdminDisplayMode()" title="Return to Mobile Responsive Layout">
+    <i class="fa-solid fa-mobile-screen-button"></i> Return to Mobile Mode
+  </button>
 </div>
 
 <!-- Admin App Layout -->
@@ -594,6 +743,9 @@ input, select, textarea { font-family: inherit; font-size: 13.5px; color: var(--
         <h2 id="adminHeaderTitle" style="font-size:17px; font-weight:800;">Dashboard</h2>
       </div>
       <div class="topbar-right">
+        <button class="btn btn-glass btn-sm" id="adminViewModeBtn" onclick="toggleAdminDisplayMode()" title="Toggle Desktop/Mobile mode">
+          <i class="fa-solid fa-desktop"></i> <span class="vm-text">Desktop Mode</span>
+        </button>
         <div class="status-pill"><i class="fa-solid fa-circle"></i>RTDB Connected</div>
         <a class="btn btn-glass btn-sm" href="/" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i>Storefront</a>
       </div>
@@ -2248,9 +2400,75 @@ function setAdminTab(tab) {
   else if (tab === 'settings') container.innerHTML = renderSettingsTab();
 }
 
+/* ==================== DISPLAY MODE (DESKTOP / MOBILE) ==================== */
+function getAdminDisplayMode() {
+  try {
+    return localStorage.getItem('nexus_admin_display_mode') || 'mobile';
+  } catch(e) {
+    return 'mobile';
+  }
+}
+
+function setAdminDisplayMode(mode, silent = false) {
+  const isDesktop = mode === 'desktop';
+  try {
+    localStorage.setItem('nexus_admin_display_mode', isDesktop ? 'desktop' : 'mobile');
+  } catch(e) {}
+
+  const vp = document.getElementById('adminViewport');
+  if (isDesktop) {
+    document.documentElement.classList.add('admin-desktop-mode');
+    document.body.classList.add('admin-desktop-mode');
+    if (vp) {
+      const sw = window.screen.width || 390;
+      const sc = Math.min(1.0, Math.max(0.25, (sw / 1240).toFixed(2)));
+      vp.setAttribute('content', `width=1240, initial-scale=${sc}, minimum-scale=0.2, maximum-scale=3.0, user-scalable=yes`);
+    }
+    if (!silent && typeof admToast === 'function') {
+      admToast('Desktop Mode enabled (1240px wide layout)');
+    }
+  } else {
+    document.documentElement.classList.remove('admin-desktop-mode');
+    document.body.classList.remove('admin-desktop-mode');
+    if (vp) {
+      vp.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover');
+    }
+    if (!silent && typeof admToast === 'function') {
+      admToast('Mobile Mode enabled');
+    }
+  }
+  updateAdminDisplayModeUI();
+}
+
+function toggleAdminDisplayMode() {
+  const current = getAdminDisplayMode();
+  setAdminDisplayMode(current === 'desktop' ? 'mobile' : 'desktop');
+}
+
+function updateAdminDisplayModeUI() {
+  const isDesktop = getAdminDisplayMode() === 'desktop';
+  const btn = document.getElementById('adminViewModeBtn');
+  if (btn) {
+    btn.innerHTML = isDesktop
+      ? '<i class="fa-solid fa-mobile-screen-button"></i> Mobile Mode'
+      : '<i class="fa-solid fa-desktop"></i> Desktop Mode';
+    btn.classList.toggle('active', isDesktop);
+    btn.setAttribute('title', isDesktop ? 'Switch back to Mobile Mode' : 'Switch to Desktop Mode');
+  }
+  const banner = document.getElementById('adminDesktopNotice');
+  if (banner) {
+    banner.style.display = isDesktop ? 'flex' : 'none';
+  }
+}
+
 /* ==================== BOOT & REAL-TIME LISTENERS ==================== */
 function initAdmin() {
   checkAuth();
+  if (getAdminDisplayMode() === 'desktop') {
+    setAdminDisplayMode('desktop', true);
+  } else {
+    updateAdminDisplayModeUI();
+  }
   if (!DB) return;
 
   DB.ref('dollarRequests').on('value', snap => {
@@ -2340,6 +2558,9 @@ window.updateHeroPreview = updateHeroPreview;
 window.saveBrandSettings = saveBrandSettings;
 window.seedDemoCatalog = seedDemoCatalog;
 window.closeAdminModal = closeAdminModal;
+window.toggleAdminDisplayMode = toggleAdminDisplayMode;
+window.setAdminDisplayMode = setAdminDisplayMode;
+window.getAdminDisplayMode = getAdminDisplayMode;
 </script>
 </body>
 </html>

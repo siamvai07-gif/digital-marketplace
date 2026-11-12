@@ -2,8 +2,24 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" id="appViewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#060913">
+<script>
+  (function() {
+    try {
+      const mode = localStorage.getItem('nexus_display_mode');
+      if (mode === 'desktop') {
+        document.documentElement.classList.add('desktop-forced-mode');
+        const vp = document.getElementById('appViewport');
+        if (vp) {
+          const sw = window.screen.width || 390;
+          const sc = Math.min(1.0, Math.max(0.25, (sw / 1240).toFixed(2)));
+          vp.setAttribute('content', 'width=1240, initial-scale=' + sc + ', minimum-scale=0.2, maximum-scale=3.0, user-scalable=yes');
+        }
+      }
+    } catch(e) {}
+  })();
+</script>
 <title>NEXUS DIGITAL — Digital Marketplace &amp; Dollar Exchange</title>
 <meta name="description" content="Instant Dollar Buy & Sell, Free Fire Diamonds, PUBG UC, Prepaid Coin Wallet, Gift Cards and Subscriptions.">
 <meta property="og:title" content="NEXUS DIGITAL — Digital Marketplace &amp; Dollar Exchange">
@@ -291,6 +307,155 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--te
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+/* ==================== ONE-CLICK DESKTOP / MOBILE MODE SWITCHER ==================== */
+.view-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s ease;
+  white-space: nowrap;
+}
+.view-mode-btn i {
+  color: var(--primary);
+  font-size: 13px;
+  transition: transform .2s ease;
+}
+.view-mode-btn:hover {
+  background: rgba(0, 242, 254, 0.12);
+  border-color: rgba(0, 242, 254, 0.45);
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.2);
+  transform: translateY(-1px);
+}
+.view-mode-btn:active {
+  transform: scale(0.95);
+}
+.view-mode-btn.active-desktop {
+  background: linear-gradient(135deg, rgba(0, 245, 160, 0.18), rgba(0, 180, 216, 0.18));
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(0, 245, 160, 0.25);
+}
+.view-mode-btn.active-desktop i {
+  color: var(--accent);
+}
+
+/* Floating Sticky Desktop Mode Notice & 1-Click Return Banner */
+.desktop-mode-banner {
+  display: none;
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: linear-gradient(90deg, #061126 0%, #0c1c3c 50%, #061126 100%);
+  border-bottom: 1px solid rgba(0, 245, 160, 0.35);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  padding: 10px 18px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.desktop-mode-banner .dmb-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+.desktop-mode-banner .dmb-left i {
+  color: var(--accent);
+  font-size: 15px;
+}
+.desktop-mode-banner .dmb-left b {
+  color: #fff;
+}
+.desktop-mode-banner .dmb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 99px;
+  background: var(--grad-main);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px var(--primary-glow);
+  transition: all .2s;
+  white-space: nowrap;
+}
+.desktop-mode-banner .dmb-btn:active {
+  transform: scale(0.95);
+}
+
+/* Forced Desktop Layout when active */
+html.desktop-forced-mode,
+body.desktop-forced-mode {
+  min-width: 1240px !important;
+  width: 1240px !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+.desktop-forced-mode #appView,
+.desktop-forced-mode .container {
+  width: 1220px !important;
+  max-width: 1220px !important;
+  margin: 0 auto !important;
+  padding: 0 20px !important;
+}
+.desktop-forced-mode #hdr {
+  min-width: 1240px !important;
+  width: 1240px !important;
+}
+.desktop-forced-mode #hdr .hdr-inner {
+  width: 1220px !important;
+  margin: 0 auto;
+}
+.desktop-forced-mode .hdr-search-box {
+  display: block !important;
+}
+.desktop-forced-mode #mobileNav {
+  display: none !important;
+}
+.desktop-forced-mode .quick-matrix {
+  grid-template-columns: repeat(8, 1fr) !important;
+  gap: 14px !important;
+}
+.desktop-forced-mode .topup-card-grid {
+  grid-template-columns: 1fr 1fr !important;
+}
+.desktop-forced-mode .exchange-calc-grid {
+  grid-template-columns: 1.15fr 0.85fr !important;
+  gap: 30px !important;
+}
+.desktop-forced-mode .product-grid {
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 18px !important;
+}
+.desktop-forced-mode .footer-grid {
+  grid-template-columns: 2fr 1fr 1fr 1.2fr !important;
+}
+.desktop-forced-mode .modal-sheet {
+  max-width: 620px !important;
+  border-radius: 26px !important;
+  transform: translateY(0) !important;
+}
+.desktop-forced-mode .modal-wrap {
+  align-items: center !important;
+}
+.desktop-forced-mode .desktop-mode-banner {
+  display: flex !important;
 }
 
 /* ==================== BUTTONS & TOUCH ACTIVE FEEDBACK ==================== */
@@ -2061,6 +2226,344 @@ footer a.fl:hover { color: var(--primary); }
   color: var(--muted-dark);
   text-align: center;
 }
+
+/* ==================== COMPREHENSIVE MOBILE OPTIMIZATIONS & FORM/CARD AUDIT ==================== */
+@media (max-width: 767px) {
+  /* Containers & Padding */
+  .container {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  
+  /* Header Touch & Spacing */
+  .hdr-inner {
+    padding: 8px 0;
+    gap: 8px;
+  }
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 17px;
+    border-radius: 11px;
+  }
+  .brand-text b {
+    font-size: 14.5px;
+    letter-spacing: -0.2px;
+  }
+  .brand-text span {
+    font-size: 9px;
+    letter-spacing: 0.4px;
+  }
+  .hdr-actions {
+    gap: 6px;
+  }
+  .wallet-badge-btn {
+    padding: 5px 9px 5px 6px;
+    font-size: 11.5px;
+    gap: 6px;
+  }
+  .wallet-badge-btn .coin-ic {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+  .view-mode-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    font-size: 14px;
+  }
+  
+  /* Hero Video & Slider */
+  .hero-wrap.video-hero {
+    min-height: 310px;
+    border-radius: 20px;
+  }
+  .video-slide {
+    padding: 22px 16px;
+  }
+  .video-slide h1 {
+    font-size: 22px;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .video-slide p {
+    font-size: 12px;
+    line-height: 1.55;
+    margin-bottom: 16px;
+  }
+  .hero-btn-row {
+    gap: 8px;
+  }
+  .hero-btn-row .btn {
+    flex: 1 1 130px;
+    padding: 11px 14px;
+    font-size: 12.5px;
+    border-radius: 12px;
+  }
+  .hero-floating-pills {
+    margin-top: 14px;
+    gap: 6px;
+  }
+  .h-pill {
+    padding: 5px 10px;
+    font-size: 10px;
+    gap: 5px;
+  }
+
+  /* Quick Category Matrix */
+  .quick-matrix {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .q-card {
+    padding: 10px 4px;
+    border-radius: 14px;
+    gap: 6px;
+  }
+  .q-ic {
+    width: 38px;
+    height: 38px;
+    font-size: 16px;
+    border-radius: 11px;
+  }
+  .q-name {
+    font-size: 10.5px;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    padding: 0 2px;
+  }
+
+  /* Dollar Hub & Rates */
+  .dollar-hub {
+    margin-top: 24px;
+    padding: 18px 14px;
+    border-radius: 20px;
+  }
+  .hub-header {
+    margin-bottom: 14px;
+  }
+  .hub-title h2 {
+    font-size: 17px;
+  }
+  .hub-title p {
+    font-size: 12px;
+  }
+  .d-instant-tag {
+    font-size: 9.5px;
+    padding: 3px 8px;
+  }
+  .rates-strip {
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+  .rate-item {
+    flex: 0 0 145px;
+    padding: 10px;
+    border-radius: 13px;
+  }
+  .calc-card {
+    padding: 16px 14px;
+    border-radius: 16px;
+  }
+  .calc-tab {
+    padding: 9px;
+    font-size: 12.5px;
+  }
+  .input-with-select input {
+    font-size: 15px;
+    padding: 10px 12px;
+  }
+  .input-with-select select {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+  .calc-summary {
+    padding: 12px;
+    margin: 12px 0;
+    font-size: 12px;
+  }
+
+  /* Game Top-Up Box */
+  .game-topup-box {
+    padding: 16px 14px;
+    border-radius: 18px;
+  }
+  .gt-head {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .gt-img {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+  }
+  .gt-head h3 {
+    font-size: 15px;
+  }
+  .gt-uid-input {
+    gap: 6px;
+  }
+  .gt-uid-input input {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+  .gt-uid-input button {
+    padding: 10px 12px;
+    font-size: 11.5px;
+  }
+  .packs-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .pack-pill {
+    padding: 8px 4px;
+    border-radius: 10px;
+  }
+  .pack-pill b {
+    font-size: 11px;
+  }
+  .pack-pill span {
+    font-size: 10px;
+  }
+
+  /* Product Cards Grid */
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .d-card {
+    border-radius: 16px;
+  }
+  .d-card-body {
+    padding: 12px 10px;
+  }
+  .d-title {
+    font-size: 12.5px;
+    line-height: 1.35;
+    min-height: 34px;
+  }
+  .d-rating {
+    font-size: 10.5px;
+    margin: 4px 0 6px;
+  }
+  .d-price {
+    font-size: 15px;
+  }
+  .d-coins-eq {
+    font-size: 10px;
+  }
+  .d-btn-row .btn {
+    padding: 8px 10px;
+    font-size: 11.5px;
+    border-radius: 10px;
+  }
+
+  /* Modals & Bottom Sheets */
+  .modal-wrap {
+    align-items: flex-end;
+  }
+  .modal-sheet {
+    border-radius: 24px 24px 0 0;
+    max-height: 88vh;
+    border-bottom: none;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .sheet-body {
+    padding: 14px 16px 20px;
+    -webkit-overflow-scrolling: touch;
+    max-height: calc(88vh - 65px);
+  }
+  .sheet-head {
+    padding: 14px 16px 10px;
+  }
+  .sheet-head h3 {
+    font-size: 15px;
+  }
+
+  /* Add Funds & Payments */
+  .funds-amount-strip {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .amount-pill-btn {
+    padding: 8px 4px;
+    border-radius: 12px;
+  }
+  .amount-pill-val {
+    font-size: 13px;
+  }
+  .amount-pill-bonus {
+    font-size: 9px;
+  }
+  .funds-method-card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+  .pay-acc-card {
+    padding: 12px;
+    border-radius: 14px;
+    margin-bottom: 8px;
+  }
+  .clean-number-display {
+    font-size: 16px;
+  }
+  .copy-num-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  /* Touch input sizing to prevent iOS zoom */
+  input[type="text"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="email"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand-text span {
+    display: none;
+  }
+  .wallet-badge-btn .topup-pill {
+    display: none;
+  }
+  .view-mode-btn .vm-text {
+    display: none;
+  }
+  .view-mode-btn {
+    padding: 6px 9px;
+  }
+  .quick-matrix {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .q-card {
+    padding: 8px 2px;
+  }
+  .q-ic {
+    width: 34px;
+    height: 34px;
+    font-size: 14px;
+  }
+  .q-name {
+    font-size: 9.5px;
+  }
+}
 </style>
 </head>
 <body>
@@ -2084,6 +2587,17 @@ footer a.fl:hover { color: var(--primary); }
   </div>
 </div>
 
+<!-- One-Click Desktop Mode Active Alert / Quick Return Bar -->
+<div id="desktopModeNotice" class="desktop-mode-banner">
+  <div class="dmb-left">
+    <i class="fa-solid fa-desktop"></i>
+    <span><b>Desktop Mode Active</b> (1240px wide viewport layout)</span>
+  </div>
+  <button class="dmb-btn" onclick="toggleDisplayMode()" title="Return to Mobile Responsive Layout">
+    <i class="fa-solid fa-mobile-screen-button"></i> Return to Mobile Mode
+  </button>
+</div>
+
 <!-- Header -->
 <header id="hdr">
   <div class="container">
@@ -2104,6 +2618,12 @@ footer a.fl:hover { color: var(--primary); }
 
       <!-- Action Buttons -->
       <div class="hdr-actions">
+        <!-- One-Click Desktop / Mobile Mode Toggle -->
+        <button class="view-mode-btn" id="viewModeToggleBtn" onclick="toggleDisplayMode()" title="Switch between Desktop & Mobile view">
+          <i class="fa-solid fa-desktop"></i>
+          <span class="vm-text">Desktop Mode</span>
+        </button>
+
         <!-- Coin Wallet Badge Button -->
         <button class="wallet-badge-btn" id="openWalletBtn" title="Wallet Balance & Top-up">
           <span class="coin-ic">🪙</span>
@@ -2136,6 +2656,7 @@ footer a.fl:hover { color: var(--primary); }
   <a class="mn-item active" data-nav="home" href="#/"><i class="fa-solid fa-house"></i><span>Home</span></a>
   <a class="mn-item" data-nav="exchange" href="#/exchange"><i class="fa-solid fa-arrow-right-arrow-left"></i><span>Exchange</span></a>
   <button class="mn-item" data-nav="wallet" id="mnWalletBtn"><i class="fa-solid fa-wallet"></i><span>Wallet</span></button>
+  <button class="mn-item" id="mnDesktopToggle" onclick="toggleDisplayMode()" title="Toggle Desktop/Mobile mode"><i class="fa-solid fa-desktop"></i><span>Desktop</span></button>
   <a class="mn-item" data-nav="orders" href="#/orders"><i class="fa-solid fa-receipt"></i><span>Orders</span></a>
   <a class="mn-item" data-nav="account" href="#/account"><i class="fa-solid fa-user"></i><span>Profile</span></a>
 </nav>
@@ -4890,6 +5411,19 @@ function renderApp() {
           </div>
         </div>
 
+        <!-- Display Layout Mode Setting Card -->
+        <div style="background:rgba(14,22,46,0.7); border:1px solid var(--border); border-radius:18px; padding:16px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <div style="font-weight:800; color:#fff; font-size:13.5px; display:flex; align-items:center; gap:8px;">
+              <i class="fa-solid fa-display" style="color:var(--primary);"></i> Display View Mode
+            </div>
+            <span style="font-size:11.5px; color:var(--muted);">Switch between Mobile Touch &amp; 1240px Desktop View</span>
+          </div>
+          <button class="btn btn-sm btn-glass" onclick="toggleDisplayMode()" id="accountModeToggleBtn">
+            <i class="fa-solid fa-desktop"></i> Switch Mode
+          </button>
+        </div>
+
         <div style="display:flex; flex-direction:column; gap:8px;">
           <button class="btn btn-glass btn-block" style="justify-content:flex-start;" onclick="openAuthModal()">
             <i class="fa-solid fa-user-gear" style="color:var(--primary); width:24px;"></i> Manage Profile &amp; Security
@@ -4917,8 +5451,89 @@ function renderApp() {
   }
 }
 
+/* ==================== ONE-CLICK DESKTOP & MOBILE MODE ENGINE ==================== */
+function getDisplayMode() {
+  try {
+    return localStorage.getItem('nexus_display_mode') || 'mobile';
+  } catch(e) {
+    return 'mobile';
+  }
+}
+
+function setDisplayMode(mode, silent = false) {
+  const isDesktop = mode === 'desktop';
+  try {
+    localStorage.setItem('nexus_display_mode', isDesktop ? 'desktop' : 'mobile');
+  } catch(e) {}
+
+  const vp = document.getElementById('appViewport');
+  if (isDesktop) {
+    document.documentElement.classList.add('desktop-forced-mode');
+    document.body.classList.add('desktop-forced-mode');
+    if (vp) {
+      const sw = window.screen.width || window.innerWidth || 390;
+      const sc = Math.min(1.0, Math.max(0.25, (sw / 1240).toFixed(2)));
+      vp.setAttribute('content', `width=1240, initial-scale=${sc}, minimum-scale=0.2, maximum-scale=3.0, user-scalable=yes`);
+    }
+    if (!silent) toast('Desktop Mode activated (1240px layout)', 'ok');
+  } else {
+    document.documentElement.classList.remove('desktop-forced-mode');
+    document.body.classList.remove('desktop-forced-mode');
+    if (vp) {
+      vp.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover');
+    }
+    if (!silent) toast('Mobile Mode activated (Native Responsive)', 'ok');
+  }
+  updateDisplayModeUI();
+}
+
+function toggleDisplayMode() {
+  const current = getDisplayMode();
+  setDisplayMode(current === 'desktop' ? 'mobile' : 'desktop');
+}
+
+function updateDisplayModeUI() {
+  const isDesktop = getDisplayMode() === 'desktop';
+  const btn = document.getElementById('viewModeToggleBtn');
+  if (btn) {
+    btn.innerHTML = isDesktop ?
+      '<i class="fa-solid fa-mobile-screen-button"></i> <span class="vm-text">Mobile Mode</span>' :
+      '<i class="fa-solid fa-desktop"></i> <span class="vm-text">Desktop Mode</span>';
+    btn.classList.toggle('active-desktop', isDesktop);
+    btn.setAttribute('title', isDesktop ? 'Switch back to Mobile Mode' : 'Switch to Desktop Mode');
+  }
+
+  const mnToggle = document.getElementById('mnDesktopToggle');
+  if (mnToggle) {
+    mnToggle.innerHTML = isDesktop ?
+      '<i class="fa-solid fa-mobile-screen-button"></i><span>Mobile</span>' :
+      '<i class="fa-solid fa-desktop"></i><span>Desktop</span>';
+    mnToggle.classList.toggle('active', isDesktop);
+  }
+
+  const banner = document.getElementById('desktopModeNotice');
+  if (banner) {
+    banner.style.display = isDesktop ? 'flex' : 'none';
+  }
+
+  const accBtn = document.getElementById('accountModeToggleBtn');
+  if (accBtn) {
+    accBtn.innerHTML = isDesktop ?
+      '<i class="fa-solid fa-mobile-screen-button"></i> Switch to Mobile View' :
+      '<i class="fa-solid fa-desktop"></i> Switch to Desktop View';
+  }
+}
+
 /* ==================== BOOT & REAL-TIME LISTENERS ==================== */
 function boot() {
+  // Initialize view mode state
+  const savedMode = getDisplayMode();
+  if (savedMode === 'desktop') {
+    setDisplayMode('desktop', true);
+  } else {
+    updateDisplayModeUI();
+  }
+
   updateWalletDisplay();
   updateUserHeaderBadge();
   updateCartBadge();
@@ -5009,6 +5624,9 @@ window.copyCleanNumberOnly = copyCleanNumberOnly;
 window.renderHeroSection = renderHeroSection;
 window.selectManualAccount = selectManualAccount;
 window.getQuickAccountSnippetsHTML = getQuickAccountSnippetsHTML;
+window.getDisplayMode = getDisplayMode;
+window.setDisplayMode = setDisplayMode;
+window.toggleDisplayMode = toggleDisplayMode;
 </script>
 </body>
 </html>
