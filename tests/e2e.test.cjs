@@ -67,37 +67,29 @@ async function main() {
     check('admin panel renders', !!overlay && !!A.doc.querySelector('#adminContent'));
     check('login overlay shown when signed out', !overlay.classList.contains('gone'));
 
-    // Real Firebase Auth sign-in: a non-admin claim must be rejected.
-    A.win.__SIGNIN_MODE__ = 'nonadmin';
-    A.setValue('#adminEmailInput', 'someone@test.dev');
-    A.setValue('#adminKeyInput', 'whatever');
+    // Key-only admin login. The key lives in Firebase, never in the bundle.
+    A.setValue('#adminKeyInput', 'WRONG-KEY');
     A.win.verifyAdminKey();
     await A.sleep(300);
-    check('non-admin account rejected', !overlay.classList.contains('gone'));
-    check('non-admin message shown', /does not have admin access/i.test(A.doc.querySelector('#loginErrMsg').textContent));
+    check('wrong key rejected', !overlay.classList.contains('gone'));
+    check('wrong key message shown', /Invalid access key/i.test(A.doc.querySelector('#loginErrMsg').textContent));
 
-    // Wrong password must not unlock and must count toward lockout.
-    A.win.__SIGNIN_MODE__ = 'bad';
-    for (let i = 0; i < 5; i++) {
-      A.setValue('#adminEmailInput', 'admin@test.dev');
-      A.setValue('#adminKeyInput', 'WRONG' + i);
+    for (let i = 0; i < 4; i++) {
+      A.setValue('#adminKeyInput', 'NOPE' + i);
       A.win.verifyAdminKey();
       await A.sleep(120);
     }
-    check('wrong password rejected', !overlay.classList.contains('gone'));
     check('lockout after 5 failures', !!A.win.localStorage.getItem('nx_admin_lock_until'));
 
     A.win.localStorage.removeItem('nx_admin_lock_until');
     A.win.localStorage.setItem('nx_admin_attempts', '0');
-    // Admin claim present -> unlock.
-    A.win.__SIGNIN_MODE__ = 'ok-admin';
-    A.setValue('#adminEmailInput', 'admin@test.dev');
-    A.setValue('#adminKeyInput', 'correct-pass');
+    A.setValue('#adminKeyInput', 'SIAMVIP');
     A.win.verifyAdminKey();
     await A.sleep(400);
-    check('admin claim unlocks the console', overlay.classList.contains('gone'));
+    check('correct key unlocks the console', overlay.classList.contains('gone'));
     check('session token stored', A.win.localStorage.getItem('nx_admin_session') === 'AUTH_OK');
-    check('no hardcoded access key in bundle', true);
+    check('access key never appears in the bundle',
+      !/SIAMVIP/.test(fs.readFileSync(path.resolve(__dirname, '..', 'admin', 'index.html'), 'utf8')));
 
     const tabs = ['dashboard', 'exchanges', 'addFunds', 'orders', 'products', 'dollarRates', 'reviews', 'promotions', 'users', 'settings'];
     let tabFailures = [];

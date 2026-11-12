@@ -45,14 +45,21 @@ const FIREBASE_MOCK = String.raw`
   // admin sign-in path: 'ok-admin', 'ok-nonadmin', 'bad', 'offline'.
   var authObj={currentUser:null,onAuthStateChanged:function(cb){setTimeout(function(){cb(null)},0);},
     signInAnonymously:function(){return Promise.resolve({user:{uid:'anon-test'}});},
+    // Key-only admin login: the access key is the password of a dedicated account.
     signInWithEmailAndPassword:function(email,pass){
-      var SIGNIN_MODE = window.__SIGNIN_MODE__ || 'ok-admin';
-      if(SIGNIN_MODE==='bad'){return Promise.reject(Object.assign(new Error('bad'),{code:'auth/wrong-password'}));}
-      if(SIGNIN_MODE==='nonadmin'){return Promise.resolve({user:{uid:'u-nonadmin',getIdTokenResult:function(){return Promise.resolve({claims:{}});}}});}
-      if(SIGNIN_MODE==='noadmin-claim'){return Promise.resolve({user:{uid:'u-x',getIdTokenResult:function(){return Promise.resolve({claims:{}});}}});}
-      return Promise.resolve({user:{uid:'u-admin',getIdTokenResult:function(){return Promise.resolve({claims:{admin:true}});}}});
+      var RUNNER = window.__RUNNER__ || {key:null, exists:true};
+      var ADMIN = RUNNER.key || 'SIAMVIP';
+      if(!RUNNER.exists){return Promise.reject(Object.assign(new Error('nf'),{code:'auth/user-not-found'}));}
+      if(pass !== ADMIN){return Promise.reject(Object.assign(new Error('bad'),{code:'auth/wrong-password'}));}
+      return Promise.resolve({user:{uid:'u-admin',email:email}});
     },
-    createUserWithEmailAndPassword:function(){return Promise.resolve({user:{uid:'u-new',email:'new@test.dev'}});},
+    createUserWithEmailAndPassword:function(email,pass){
+      var RUNNER = window.__RUNNER__ || {key:null};
+      var ADMIN = RUNNER.key || 'SIAMVIP';
+      if(pass !== ADMIN){return Promise.reject(Object.assign(new Error('bad'),{code:'auth/wrong-password'}));}
+      window.__RUNNER__ = {key:ADMIN, exists:true};
+      return Promise.resolve({user:{uid:'u-admin',email:email}});
+    },
     signOut:function(){return Promise.resolve();}};
   window.firebase={initializeApp:function(){},database:function(){return {ref:function(p){return new Ref(p||'root');}};},auth:function(){return authObj;}};
   window.confetti=window.confetti||function(){};
