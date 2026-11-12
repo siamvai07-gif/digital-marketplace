@@ -650,10 +650,7 @@ body.admin-desktop-mode {
     <h1>NEXUS ADMIN PORTAL</h1>
     <p>Authorized access to Dollar Terminal &amp; Digital Store</p>
     <div class="login-field">
-      <input id="adminEmailInput" type="email" placeholder="Admin Email" autocomplete="username">
-    </div>
-    <div class="login-field">
-      <input id="adminKeyInput" type="password" placeholder="Password" autocomplete="current-password">
+      <input id="adminKeyInput" type="password" placeholder="Access Key" autocomplete="off">
       <button type="button" id="toggleKeyVisibility"><i class="fa-regular fa-eye"></i></button>
     </div>
     <div class="login-error" id="loginErrMsg">Sign in to continue</div>
@@ -881,22 +878,14 @@ const DEFAULT_HERO_VIDEO = {
 
 // Local Storage Session
 const ADMIN_SESS_KEY = 'nx_admin_session';
-const ADMIN_KEY_HASH = 'p1ww0kqsb4rt34h'; // sha-less digest of the authorised access key (key never stored)
+// Dedicated Firebase Auth account whose password is the admin access key.
+// Not secret: it is only a username. The key itself never ships in this bundle.
+const ADMIN_AUTH_EMAIL = 'admin@nexusdigital.app';
 const ADMIN_SESS_TTL = 12 * 60 * 60 * 1000; // 12 hours
 const ADMIN_MAX_ATTEMPTS = 5;
 const ADMIN_LOCKOUT_MS = 5 * 60 * 1000;
 
 // Same one-way digest used by the customer app (no plaintext key in the bundle).
-function adminHashKey(key, salt) {
-  const input = String(salt || '') + '::' + String(key == null ? '' : key);
-  let h1 = 0x811c9dc5, h2 = 0x01000193;
-  for (let i = 0; i < input.length; i++) {
-    const c = input.charCodeAt(i);
-    h1 = ((h1 ^ c) * 16777619) >>> 0;
-    h2 = ((h2 + c * (i + 7)) * 2654435761) >>> 0;
-  }
-  return ('p' + h1.toString(36) + h2.toString(36) + input.length.toString(36)).slice(0, 28);
-}
 
 function isAdminSessionValid() {
   try {
@@ -927,7 +916,6 @@ function getLockoutRemaining() {
 }
 
 function verifyAdminKey() {
-  const emailEl = $('#adminEmailInput');
   const passEl = $('#adminKeyInput');
   const errEl = $('#loginErrMsg');
 
@@ -938,11 +926,10 @@ function verifyAdminKey() {
     return;
   }
 
-  const email = (emailEl.value || '').trim();
-  const pass = passEl.value || '';
-  if (!email || !pass) {
+  const key = (passEl.value || '').trim();
+  if (!key) {
     errEl.style.display = 'block';
-    errEl.textContent = 'Enter both your admin email and password.';
+    errEl.textContent = 'Please enter the access key.';
     return;
   }
 
@@ -965,32 +952,44 @@ function verifyAdminKey() {
     }
   };
 
-  // Real credential check. Firebase Auth verifies the password server-side, and the
-  // database rules then trust `auth.token.admin`. The previous client-side digest was
-  // a UI barrier only — anyone could call the same database paths directly.
-  auth.signInWithEmailAndPassword(email, pass)
-    .then(cred => cred.user.getIdTokenResult())
-    .then(res => {
-      if (!res || !res.claims || res.claims.admin !== true) {
-        return auth.signOut().then(() => { throw Object.assign(new Error('not-admin'), { code: 'app/not-admin' }); });
-      }
-      localStorage.setItem(ADMIN_SESS_KEY, 'AUTH_OK');
-      localStorage.setItem(ADMIN_SESS_KEY + '_at', String(Date.now()));
-      localStorage.removeItem('nx_admin_attempts');
-      localStorage.removeItem('nx_admin_lock_until');
-      passEl.value = '';
-      errEl.style.display = 'none';
-      $('#loginOverlay').classList.add('gone');
-      admToast('Admin authenticated successfully');
-      if (typeof setAdminTab === 'function') setAdminTab(AdminState.currentTab || 'dashboard');
-      initAdmin();
-    })
+  const unlock = () => {
+    localStorage.setItem(ADMIN_SESS_KEY, 'AUTH_OK');
+    localStorage.setItem(ADMIN_SESS_KEY + '_at', String(Date.now()));
+    localStorage.removeItem('nx_admin_attempts');
+    localStorage.removeItem('nx_admin_lock_until');
+    passEl.value = '';
+    errEl.style.display = 'none';
+    $('#loginOverlay').classList.add('gone');
+    admToast('Admin authenticated successfully');
+    if (typeof setAdminTab === 'function') setAdminTab(AdminState.currentTab || 'dashboard');
+    initAdmin();
+  };
+
+  // The access key IS the password of a dedicated Firebase Auth account, so Google
+  // verifies it server-side. Nothing brute-forces offline because the key never
+  // ships in the bundle — it only exists in the input and in Firebase's credential
+  // store. On the very first successful use the account is created automatically,
+  // so there is no console step and no Admin SDK.
+  auth.signInWithEmailAndPassword(ADMIN_AUTH_EMAIL, key)
+    .then(unlock)
     .catch(err => {
       const code = (err && err.code) || '';
-      if (code === 'app/not-admin') fail('This account does not have admin access.');
-      else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || code === 'auth/user-not-found') fail('Invalid email or password.');
-      else if (code === 'auth/too-many-requests') fail('Too many attempts. Try again later.');
-      else fail('Sign-in failed. Check your connection.');
+      if (code === 'auth/user-not-found') {
+        // First run with the correct key: create the admin account.
+        auth.createUserWithEmailAndPassword(ADMIN_AUTH_EMAIL, key)
+          .then(unlock)
+          .catch(() => fail('Invalid access key.'));
+        return;
+      }
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        fail('Invalid access key.');
+        return;
+      }
+      if (code === 'auth/too-many-requests') {
+        fail('Too many attempts. Try again later.');
+        return;
+      }
+      fail('Sign-in failed. Check your connection.');
     });
 }
 

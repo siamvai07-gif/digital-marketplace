@@ -144,11 +144,10 @@ async function main() {
   check('admin script actually executed', typeof aw.verifyAdminKey === 'function');
   check('login gate shown', !ad.querySelector('#loginOverlay').classList.contains('gone'));
 
-  A.setValue('#adminEmailInput', 'admin@test.dev');
-  A.setValue('#adminKeyInput', 'correct-pass');
+  A.setValue('#adminKeyInput', 'SIAMVIP');
   aw.verifyAdminKey();
   await A.sleep(500);
-  check('admin claim unlocks admin', ad.querySelector('#loginOverlay').classList.contains('gone'));
+  check('access key unlocks admin', ad.querySelector('#loginOverlay').classList.contains('gone'));
   check('no hardcoded access key in the bundle',
     !fs.readFileSync(path.resolve(__dirname, '..', 'dist', 'admin', 'index.html'), 'utf8').includes('SIAMVIP'));
 

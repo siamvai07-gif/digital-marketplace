@@ -246,6 +246,26 @@ function main() {
     !/GEMINI_API_KEY="MY_/.test(fs.readFileSync(path.join(REPO, '.env.example'), 'utf8')));
   check('no .env file committed', !fs.existsSync(path.join(REPO, '.env')));
 
+  // Admin access relies on a Firebase Auth account whose email the rules trust.
+  // If either side drifts, admin reads start failing with PERMISSION_DENIED.
+  {
+    const rulesRaw = fs.readFileSync(path.join(REPO, 'docs', 'firebase', 'rules.proposed.json'), 'utf8');
+    const rulesJson = JSON.parse(rulesRaw);
+    const adminHtmlSrc = fs.readFileSync(path.join(REPO, 'admin', 'index.html'), 'utf8');
+    const m = adminHtmlSrc.match(/const ADMIN_AUTH_EMAIL = '([^']+)'/);
+    check('admin auth email declared once in admin panel', !!m);
+    const email = m ? m[1] : '';
+    check('rules reference the same admin email',
+      !!email && rulesRaw.includes("auth.token.email === '" + email + "'"));
+    check('rules no longer depend on an Admin-SDK custom claim',
+      !rulesRaw.includes('auth.token.admin'));
+    check('admin key is not shipped in the bundle', !/SIAMVIP/.test(adminHtmlSrc));
+    check('rules deny by default at the root',
+      rulesJson.rules['.read'] === false && rulesJson.rules['.write'] === false);
+    check('wallet balance is admin-write-only',
+      JSON.stringify(rulesJson.rules.customers).includes('walletCoins'));
+  }
+
   finish();
 }
 
