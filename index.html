@@ -2743,7 +2743,12 @@ const fmtNum = n => Number(n || 0).toLocaleString('en-IN');
 const fmtUSD = n => '$' + Number(n || 0).toFixed(2);
 const fmtDate = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : 'Recent';
 const PLH = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="#0d1428"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#2d3b64" font-family="Arial" font-size="28" font-weight="bold">DIGITAL ITEM</text></svg>');
-const safeImg = u => { u = String(u || '').trim(); return /^https?:\/\//i.test(u) ? u : PLH; };
+const safeImg = u => {
+  u = String(u || '').trim();
+  if (!u) return PLH;
+  if (u.startsWith('/') || u.startsWith('./') || /^https?:\/\//i.test(u) || u.startsWith('data:')) return u;
+  return PLH;
+};
 
 // Toast Notification
 function toast(msg, type = 'ok', duration = 3000) {
@@ -3300,6 +3305,11 @@ function viewHome() {
       </div>
     </div>
 
+    <!-- Official Promotional Notice Banner -->
+    <div style="margin: 18px 0; border-radius: 20px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.4); background: #0b1226;">
+      <img src="/assets/aistudio/Slider_image_2200d4d0.jpg" alt="Special Promotional Offer Notice" style="width:100%; display:block; object-fit:cover; aspect-ratio:21/8; max-height:240px;" loading="lazy" onerror="this.style.display='none'">
+    </div>
+
     <!-- Dollar Buy & Sell Interactive Hub -->
     <section class="dollar-hub" id="dollarHub">
       <div class="hub-header">
@@ -3798,14 +3808,16 @@ function renderProductCards(filterCategory = 'all') {
   // If no products in DB yet, show high-converting default catalog
   if (!list.length) {
     const defaultCatalog = [
-      { id: 'prod_ff_610', name: 'Free Fire 610 Diamonds (UID Top-Up)', category: 'games', price: 415, coins: 415, badge: 'BESTSELLER', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80&auto=format&fit=crop', desc: 'Instant Player UID direct top-up. BD & Global servers supported.' },
+      { id: 'prod_ff_610', name: 'Free Fire 610 Diamonds (UID Top-Up)', category: 'games', price: 415, coins: 415, badge: 'BESTSELLER', image: '/assets/aistudio/UID_TOPUP_dd448c6f.png', desc: 'Instant Player UID direct top-up. BD & Global servers supported.' },
+      { id: 'prod_ff_friday', name: 'Free Fire Friday Special Offer', category: 'games', price: 190, coins: 190, badge: 'FRIDAY DEAL', image: '/assets/aistudio/Friday_Offer_aca93410.png', desc: 'Exclusive Friday bonus diamond package with extra in-game rewards.' },
+      { id: 'prod_ff_weekly', name: 'Free Fire Weekly Pass', category: 'games', price: 170, coins: 170, badge: 'POPULAR', image: '/assets/aistudio/Weekly_Offer__95074e40.png', desc: '450 total diamonds value + daily check-in rewards for 7 days.' },
+      { id: 'prod_ff_monthly', name: 'Free Fire Monthly Pass', category: 'games', price: 790, coins: 790, badge: 'VIP PASS', image: '/assets/aistudio/Monthly_Offer__5e831c4c.png', desc: '2600 total diamonds value + monthly VIP badge and perks.' },
+      { id: 'prod_ff_levelup', name: 'Free Fire Level Up Pass', category: 'games', price: 180, coins: 180, badge: 'BEST VALUE', image: '/assets/aistudio/Level_Up_Pass__cfaa61d7.png', desc: 'Claim up to 800 bonus diamonds as your player level rises.' },
+      { id: 'prod_ff_evotoken', name: 'Free Fire Evo Access Tokens', category: 'games', price: 280, coins: 280, badge: 'INSTANT', image: '/assets/aistudio/Evo_Token__b1777fb5.png', desc: 'Direct Evo Gun level up tokens delivered instantly.' },
+      { id: 'prod_unipin', name: 'UniPin Gift Voucher Code', category: 'giftcards', price: 250, coins: 250, badge: 'VOUCHER', image: '/assets/aistudio/UniPin_Voucher__57013062.png', desc: 'Redeemable UniPin credits for top online games.' },
       { id: 'prod_pubg_660', name: 'PUBG Mobile 660 UC (Global Character ID)', category: 'games', price: 940, coins: 940, badge: 'HOT', image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&q=80&auto=format&fit=crop', desc: 'Direct Character ID instant top-up within 30 seconds.' },
-      { id: 'prod_ff_115', name: 'Free Fire 115 Diamonds (UID Instant)', category: 'games', price: 85, coins: 85, badge: 'INSTANT', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80&auto=format&fit=crop', desc: 'Instant Player UID delivery to in-game vault.' },
-      { id: 'prod_tg', name: 'Telegram Premium (3/6/12 Months)', category: 'subscriptions', price: 950, coins: 950, badge: 'HOT', image: 'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?w=600&q=80&auto=format&fit=crop', desc: 'No phone login needed. Activated via official Telegram gift link in 5 mins.' },
       { id: 'prod_canva', name: 'Canva Pro Lifetime Access', category: 'subscriptions', price: 199, coins: 199, badge: 'POPULAR', image: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=600&q=80&auto=format&fit=crop', desc: 'Own email upgrade. Brand kits, unlimited templates & AI features.' },
-      { id: 'prod_chatgpt', name: 'ChatGPT Plus (GPT-4o / Canvas)', category: 'ai-tools', price: 450, coins: 450, badge: 'AI TOOLS', image: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=600&q=80&auto=format&fit=crop', desc: 'Instant private profile access. Unlimited prompts & image generation.' },
-      { id: 'prod_gplay', name: 'Google Play Gift Card ($5 / $10 / $25)', category: 'giftcards', price: 620, coins: 620, badge: 'VOUCHER', image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&q=80&auto=format&fit=crop', desc: 'US Region instant redeem digital code delivered to your dashboard.' },
-      { id: 'prod_netflix', name: 'Netflix 4K Ultra HD (1 Month Private Screen)', category: 'subscriptions', price: 299, coins: 299, badge: 'INSTANT', image: 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=600&q=80&auto=format&fit=crop', desc: 'Personal PIN-protected screen on Ultra HD Premium shared account.' }
+      { id: 'prod_chatgpt', name: 'ChatGPT Plus (GPT-4o / Canvas)', category: 'ai-tools', price: 450, coins: 450, badge: 'AI TOOLS', image: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=600&q=80&auto=format&fit=crop', desc: 'Instant private profile access. Unlimited prompts & image generation.' }
     ];
     list = filterCategory === 'all' ? defaultCatalog : defaultCatalog.filter(p => p.category === filterCategory);
   }

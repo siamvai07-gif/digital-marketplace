@@ -787,6 +787,94 @@ function admToast(msg, type = 'ok') {
   }, 2600);
 }
 
+const PLH = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="400" height="250" fill="#0d1428"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#2d3b64" font-family="Arial" font-size="28" font-weight="bold">DIGITAL ITEM</text></svg>');
+const safeImg = u => {
+  u = String(u || '').trim();
+  if (!u) return PLH;
+  if (u.startsWith('/') || u.startsWith('./') || /^https?:\/\//i.test(u) || u.startsWith('data:')) return u;
+  return PLH;
+};
+
+const DEFAULT_DOLLAR_RATES = {
+  usdt: { id:'usdt', name:'USDT (TRC20)', buyRate:125.00, sellRate:121.50, reserve:18500, min:10, max:2000, fee:0, icon:'https://cryptologos.cc/logos/tether-usdt-logo.png' },
+  binance: { id:'binance', name:'Binance Pay (USD)', buyRate:125.50, sellRate:122.00, reserve:14200, min:5, max:3000, fee:0, icon:'https://cryptologos.cc/logos/binance-coin-bnb-logo.png' },
+  payeer: { id:'payeer', name:'Payeer USD', buyRate:126.00, sellRate:120.00, reserve:6400, min:5, max:1000, fee:1, icon:'https://payeer.com/favicon.ico' },
+  pm: { id:'pm', name:'Perfect Money', buyRate:127.00, sellRate:120.50, reserve:5100, min:5, max:1500, fee:1, icon:'https://perfectmoney.com/favicon.ico' },
+  paypal: { id:'paypal', name:'PayPal USD', buyRate:124.00, sellRate:118.00, reserve:4800, min:10, max:500, fee:2, icon:'https://www.paypalobjects.com/webstatic/icon/favicon.ico' }
+};
+
+const DEFAULT_PAYMENT_ACCOUNTS = {
+  acc_bkash_send: {
+    id: 'acc_bkash_send',
+    provider: 'bkash',
+    type: 'SEND_MONEY',
+    number: '01888123456',
+    label: 'Primary bKash Personal',
+    limit: 'Send Money only • Limit: 25,000৳ • 24/7 Active',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_bkash_cashout: {
+    id: 'acc_bkash_cashout',
+    provider: 'bkash',
+    type: 'CASH_OUT',
+    number: '01888987654',
+    label: 'bKash Agent (Cash Out)',
+    limit: 'Cash Out only • Use Agent Option • 24/7 Active',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_nagad_send: {
+    id: 'acc_nagad_send',
+    provider: 'nagad',
+    type: 'SEND_MONEY',
+    number: '01999123456',
+    label: 'Nagad Personal (Send Money)',
+    limit: 'Send Money only • Instant Auto-Credit',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_nagad_cashout: {
+    id: 'acc_nagad_cashout',
+    provider: 'nagad',
+    type: 'CASH_OUT',
+    number: '01999876543',
+    label: 'Nagad Agent (Cash Out)',
+    limit: 'Agent Cash Out • Immediate Settlement',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_rocket_send: {
+    id: 'acc_rocket_send',
+    provider: 'rocket',
+    type: 'SEND_MONEY',
+    number: '017771234567',
+    label: 'DBBL Rocket Personal',
+    limit: '12-digit DBBL number • Send Money',
+    active: true,
+    updatedAt: Date.now()
+  },
+  acc_binance: {
+    id: 'acc_binance',
+    provider: 'binance',
+    type: 'SEND_MONEY',
+    number: '75421939',
+    label: 'Binance Pay UID (USDT)',
+    limit: 'Binance Pay ID: 75421939 • Zero Gas Fee',
+    active: true,
+    updatedAt: Date.now()
+  }
+};
+
+const DEFAULT_HERO_VIDEO = {
+  enabled: true,
+  youtubeUrl: 'https://www.youtube.com/watch?v=ysz5S6PUM-U',
+  videoId: 'ysz5S6PUM-U',
+  title: 'BUY & SELL DOLLAR & GAME TOP-UPS INSTANTLY',
+  subtitle: 'Instant USDT, Payeer & Binance Pay cashout via bKash/Nagad. Free Fire Diamond Top-Up, PUBG UC & Premium Accounts in seconds.',
+  badge: '#1 RATED DIGITAL MARKETPLACE & DOLLAR DESK'
+};
+
 // Local Storage Session
 const ADMIN_SESS_KEY = 'nx_admin_session';
 function checkAuth() {
@@ -1399,12 +1487,19 @@ function openProductEditorModal(id) {
     </div>
     <div class="form-field">
       <label>Product Image URL</label>
-      <input id="epImg" value="${esc(p.image || '')}" placeholder="https://images.unsplash.com/photo-...">
-      <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
-        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80'">Free Fire Preset</button>
-        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&q=80'">PUBG Preset</button>
-        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400&q=80'">Canva Preset</button>
-        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='https://images.unsplash.com/photo-1677442136019-21780efad99a?w=400&q=80'">ChatGPT Preset</button>
+      <input id="epImg" value="${esc(p.image || '')}" placeholder="e.g. /assets/aistudio/UID_TOPUP_dd448c6f.png">
+      <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/UID_TOPUP_dd448c6f.png'">FF 610 Diamonds</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/Friday_Offer_aca93410.png'">Friday Offer</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/Indonesia_UID_TOPUP_a981d1aa.png'">Indo UID</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/FREE_FIRE_LIKE_ac4e3fa7.png'">1000 Likes</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/Evo_Token_Box_68b265d3.png'">Evo Box</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/Evo_Token__b1777fb5.png'">Evo Token</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/Level_Up_Pass__cfaa61d7.png'">Level Up Pass</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/Weekly_Offer__95074e40.png'">Weekly Offer</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/Weekly_Lite_d277529f.png'">Weekly Lite</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/Monthly_Offer__5e831c4c.png'">Monthly Offer</button>
+        <button type="button" class="btn btn-glass btn-sm" onclick="$('#epImg').value='/assets/aistudio/UniPin_Voucher__57013062.png'">UniPin Voucher</button>
       </div>
     </div>
     <div class="form-field">
@@ -1452,7 +1547,8 @@ function deleteProduct(id) {
 
 /* ==================== TAB 6: DOLLAR RATES & RESERVES (CRUD) ==================== */
 function renderDollarRatesTab() {
-  const r = AdminState.settings.dollarRates || {};
+  const raw = AdminState.settings.dollarRates;
+  const r = (raw && Object.keys(raw).length) ? raw : DEFAULT_DOLLAR_RATES;
   const currencies = Object.entries(r).map(([id, c]) => ({ id, ...c }));
 
   return `
@@ -1570,6 +1666,8 @@ function saveNewCurrency() {
   DB.ref('settings/dollarRates/' + id).set(cur).then(() => {
     closeAdminModal();
     admToast('Currency added!');
+  }).catch(err => {
+    admToast('Failed to add currency: ' + err.message, 'err');
   });
 }
 
@@ -1580,17 +1678,31 @@ function deleteCurrency(id) {
 }
 
 function saveAllDollarRates() {
-  const r = AdminState.settings.dollarRates || {};
+  const raw = AdminState.settings.dollarRates;
+  const r = (raw && Object.keys(raw).length) ? raw : DEFAULT_DOLLAR_RATES;
   const updates = {};
   Object.keys(r).forEach(id => {
-    updates[id + '/buyRate'] = Number($('#rate_buy_' + id)?.value) || r[id].buyRate || 125;
-    updates[id + '/sellRate'] = Number($('#rate_sell_' + id)?.value) || r[id].sellRate || 121;
-    updates[id + '/reserve'] = Number($('#rate_res_' + id)?.value) || r[id].reserve || 10000;
-    updates[id + '/fee'] = Number($('#rate_fee_' + id)?.value) || 0;
+    const buyEl = $('#rate_buy_' + id);
+    const sellEl = $('#rate_sell_' + id);
+    const resEl = $('#rate_res_' + id);
+    const feeEl = $('#rate_fee_' + id);
+
+    updates[id] = {
+      ...r[id],
+      id: id,
+      name: r[id].name || id.toUpperCase(),
+      buyRate: buyEl ? (Number(buyEl.value) || r[id].buyRate || 125) : (r[id].buyRate || 125),
+      sellRate: sellEl ? (Number(sellEl.value) || r[id].sellRate || 121) : (r[id].sellRate || 121),
+      reserve: resEl ? (Number(resEl.value) || r[id].reserve || 10000) : (r[id].reserve || 10000),
+      fee: feeEl ? (Number(feeEl.value) || 0) : (r[id].fee || 0),
+      icon: r[id].icon || 'https://cryptologos.cc/logos/tether-usdt-logo.png'
+    };
   });
 
-  DB.ref('settings/dollarRates').update(updates).then(() => {
+  DB.ref('settings/dollarRates').set(updates).then(() => {
     admToast('All dollar exchange rates saved!');
+  }).catch(err => {
+    admToast('Error saving rates: ' + err.message, 'err');
   });
 }
 
@@ -2330,8 +2442,17 @@ function seedDemoCatalog() {
   if (!confirm('Populate catalog with rich initial data (Dollar rates, Free Fire packs, PUBG UC, Canva, Telegram, Reviews, and Coupons)?')) return;
 
   const demoProducts = {
-    prod_ff_115: { name: 'Free Fire 115 Diamonds (UID)', category: 'games', deliveryType: 'Instant Player UID', price: 85, coins: 85, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80', desc: 'Instant UID top-up for Bangladesh & Global region.' },
-    prod_ff_610: { name: 'Free Fire 610 Diamonds (UID)', category: 'games', deliveryType: 'Instant Player UID', price: 415, coins: 415, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80', desc: 'Best value diamond pack with instant delivery.' },
+    prod_ff_610: { name: 'Free Fire 610 Diamonds (UID)', category: 'games', deliveryType: 'Instant Player UID', price: 415, coins: 415, inStock: true, visible: true, image: '/assets/aistudio/UID_TOPUP_dd448c6f.png', desc: 'Instant Player UID top-up for Bangladesh & Global servers.' },
+    prod_ff_friday: { name: 'Free Fire Friday Special Offer', category: 'games', deliveryType: 'Instant Player UID', price: 190, coins: 190, inStock: true, visible: true, image: '/assets/aistudio/Friday_Offer_aca93410.png', desc: 'Exclusive Friday bonus diamond package with bonus rewards.' },
+    prod_ff_indo: { name: 'Free Fire Indonesia Server UID TopUp', category: 'games', deliveryType: 'Instant Player UID', price: 350, coins: 350, inStock: true, visible: true, image: '/assets/aistudio/Indonesia_UID_TOPUP_a981d1aa.png', desc: 'Dedicated Indonesia server Player UID top-up.' },
+    prod_ff_like: { name: 'Free Fire 1000 Profile Likes', category: 'games', deliveryType: 'Instant Player UID', price: 120, coins: 120, inStock: true, visible: true, image: '/assets/aistudio/FREE_FIRE_LIKE_ac4e3fa7.png', desc: 'Boost in-game profile credibility with 1000 real player likes.' },
+    prod_ff_evobox: { name: 'Free Fire Evo Token Box (10x)', category: 'games', deliveryType: 'Instant Player UID', price: 150, coins: 150, inStock: true, visible: true, image: '/assets/aistudio/Evo_Token_Box_68b265d3.png', desc: 'Unlock legendary weapon upgrades with 10x Evo Token Crate Boxes.' },
+    prod_ff_evotoken: { name: 'Free Fire Evo Access Tokens', category: 'games', deliveryType: 'Instant Player UID', price: 280, coins: 280, inStock: true, visible: true, image: '/assets/aistudio/Evo_Token__b1777fb5.png', desc: 'Direct Evo Gun level up tokens delivered instantly to game inbox.' },
+    prod_ff_levelup: { name: 'Free Fire Level Up Pass', category: 'games', deliveryType: 'Instant Player UID', price: 180, coins: 180, inStock: true, visible: true, image: '/assets/aistudio/Level_Up_Pass__cfaa61d7.png', desc: 'Claim up to 800 bonus diamonds as your player level rises.' },
+    prod_ff_weekly: { name: 'Free Fire Weekly Membership Pass', category: 'games', deliveryType: 'Instant Player UID', price: 170, coins: 170, inStock: true, visible: true, image: '/assets/aistudio/Weekly_Offer__95074e40.png', desc: '450 total diamonds value + daily check-in rewards for 7 days.' },
+    prod_ff_weeklylite: { name: 'Free Fire Weekly Lite Pass', category: 'games', deliveryType: 'Instant Player UID', price: 65, coins: 65, inStock: true, visible: true, image: '/assets/aistudio/Weekly_Lite_d277529f.png', desc: 'Budget weekly membership pack for instant mini diamonds.' },
+    prod_ff_monthly: { name: 'Free Fire Monthly Membership Pass', category: 'games', deliveryType: 'Instant Player UID', price: 790, coins: 790, inStock: true, visible: true, image: '/assets/aistudio/Monthly_Offer__5e831c4c.png', desc: '2600 total diamonds value + monthly VIP badge and perks.' },
+    prod_unipin: { name: 'UniPin Gift Voucher Code', category: 'giftcards', deliveryType: 'Voucher Code', price: 250, coins: 250, inStock: true, visible: true, image: '/assets/aistudio/UniPin_Voucher__57013062.png', desc: 'Redeemable UniPin credits for multiple popular online games.' },
     prod_pubg_660: { name: 'PUBG Mobile 660 UC (Global)', category: 'games', deliveryType: 'Instant Player UID', price: 940, coins: 940, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&q=80', desc: 'Character ID instant top-up within 30 seconds.' },
     prod_canva_pro: { name: 'Canva Pro Lifetime License', category: 'subscriptions', deliveryType: 'Account Login', price: 199, coins: 199, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400&q=80', desc: 'Own email upgrade with all premium brand assets unlocked.' },
     prod_tg_prem: { name: 'Telegram Premium (3 Months)', category: 'subscriptions', deliveryType: 'Direct Link', price: 950, coins: 950, inStock: true, visible: true, image: 'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?w=400&q=80', desc: 'Activated via official Telegram gift link within 5 minutes.' },
@@ -2461,6 +2582,15 @@ function updateAdminDisplayModeUI() {
   }
 }
 
+function safeRefreshAdminTab(tab) {
+  if (AdminState.currentTab !== tab) return;
+  const activeEl = document.activeElement;
+  if (activeEl && $('#adminContent')?.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
+    return;
+  }
+  setAdminTab(tab);
+}
+
 /* ==================== BOOT & REAL-TIME LISTENERS ==================== */
 function initAdmin() {
   checkAuth();
@@ -2473,42 +2603,42 @@ function initAdmin() {
 
   DB.ref('dollarRequests').on('value', snap => {
     AdminState.dollarRequests = snap.val() || {};
-    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'exchanges') setAdminTab(AdminState.currentTab);
+    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'exchanges') safeRefreshAdminTab(AdminState.currentTab);
   });
 
   DB.ref('addFunds').on('value', snap => {
     AdminState.addFunds = snap.val() || {};
-    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'addFunds' || AdminState.currentTab === 'deposits') setAdminTab(AdminState.currentTab);
+    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'addFunds' || AdminState.currentTab === 'deposits') safeRefreshAdminTab(AdminState.currentTab);
   });
 
   DB.ref('deposits').on('value', snap => {
     AdminState.deposits = snap.val() || {};
-    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'addFunds' || AdminState.currentTab === 'deposits') setAdminTab(AdminState.currentTab);
+    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'addFunds' || AdminState.currentTab === 'deposits') safeRefreshAdminTab(AdminState.currentTab);
   });
 
   DB.ref('orders').on('value', snap => {
     AdminState.orders = snap.val() || {};
-    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'orders') setAdminTab(AdminState.currentTab);
+    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'orders') safeRefreshAdminTab(AdminState.currentTab);
   });
 
   DB.ref('products').on('value', snap => {
     AdminState.products = snap.val() || {};
-    if (AdminState.currentTab === 'products') setAdminTab('products');
+    if (AdminState.currentTab === 'products') safeRefreshAdminTab('products');
   });
 
   DB.ref('reviews').on('value', snap => {
     AdminState.reviews = snap.val() || {};
-    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'reviews') setAdminTab(AdminState.currentTab);
+    if (AdminState.currentTab === 'dashboard' || AdminState.currentTab === 'reviews') safeRefreshAdminTab(AdminState.currentTab);
   });
 
   DB.ref('customers').on('value', snap => {
     AdminState.users = snap.val() || {};
-    if (AdminState.currentTab === 'users') setAdminTab('users');
+    if (AdminState.currentTab === 'users') safeRefreshAdminTab('users');
   });
 
   DB.ref('settings').on('value', snap => {
     AdminState.settings = snap.val() || {};
-    if (AdminState.currentTab === 'dollarRates' || AdminState.currentTab === 'settings' || AdminState.currentTab === 'promotions') setAdminTab(AdminState.currentTab);
+    if (AdminState.currentTab === 'dollarRates' || AdminState.currentTab === 'settings' || AdminState.currentTab === 'promotions') safeRefreshAdminTab(AdminState.currentTab);
   });
 
   setAdminTab('dashboard');
