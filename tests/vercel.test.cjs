@@ -110,6 +110,9 @@ function main() {
     check('admin key not in storefront bundle', !/SIAMVIP/.test(storeHtml));
     check('no Firebase SDK referenced',
       !/firebasejs|gstatic\.com\/firebase/.test(storeHtml) && !/firebasejs|gstatic\.com\/firebase/.test(adminHtml));
+    check('no Firebase config or references left in the source pages',
+      !/firebase/i.test(fs.readFileSync(path.join(REPO, 'index.html'), 'utf8')) &&
+      !/firebase/i.test(fs.readFileSync(path.join(REPO, 'admin/index.html'), 'utf8')));
     check('Supabase data layer loaded in storefront',
       /vendor\/nexus-db\.js/.test(storeHtml));
     check('Supabase data layer loaded in admin',
