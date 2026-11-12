@@ -41,9 +41,18 @@ const FIREBASE_MOCK = String.raw`
   Ref.prototype.limitToLast=function(){return this;};
   Ref.prototype.limitToFirst=function(){return this;};
   Ref.prototype.startAt=function(){return this;};
+  // Stub Auth. SIGNIN_MODE drives the outcome so tests can exercise the real
+  // admin sign-in path: 'ok-admin', 'ok-nonadmin', 'bad', 'offline'.
   var authObj={currentUser:null,onAuthStateChanged:function(cb){setTimeout(function(){cb(null)},0);},
-    signInWithEmailAndPassword:function(){return Promise.reject(Object.assign(new Error('auth/unavailable'),{code:'auth/network-request-failed'}));},
-    createUserWithEmailAndPassword:function(){return Promise.reject(Object.assign(new Error('auth/unavailable'),{code:'auth/operation-not-allowed'}));},
+    signInAnonymously:function(){return Promise.resolve({user:{uid:'anon-test'}});},
+    signInWithEmailAndPassword:function(email,pass){
+      var SIGNIN_MODE = window.__SIGNIN_MODE__ || 'ok-admin';
+      if(SIGNIN_MODE==='bad'){return Promise.reject(Object.assign(new Error('bad'),{code:'auth/wrong-password'}));}
+      if(SIGNIN_MODE==='nonadmin'){return Promise.resolve({user:{uid:'u-nonadmin',getIdTokenResult:function(){return Promise.resolve({claims:{}});}}});}
+      if(SIGNIN_MODE==='noadmin-claim'){return Promise.resolve({user:{uid:'u-x',getIdTokenResult:function(){return Promise.resolve({claims:{}});}}});}
+      return Promise.resolve({user:{uid:'u-admin',getIdTokenResult:function(){return Promise.resolve({claims:{admin:true}});}}});
+    },
+    createUserWithEmailAndPassword:function(){return Promise.resolve({user:{uid:'u-new',email:'new@test.dev'}});},
     signOut:function(){return Promise.resolve();}};
   window.firebase={initializeApp:function(){},database:function(){return {ref:function(p){return new Ref(p||'root');}};},auth:function(){return authObj;}};
   window.confetti=window.confetti||function(){};

@@ -650,10 +650,13 @@ body.admin-desktop-mode {
     <h1>NEXUS ADMIN PORTAL</h1>
     <p>Authorized access to Dollar Terminal &amp; Digital Store</p>
     <div class="login-field">
-      <input id="adminKeyInput" type="password" placeholder="Access Key" autocomplete="off">
+      <input id="adminEmailInput" type="email" placeholder="Admin Email" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <input id="adminKeyInput" type="password" placeholder="Password" autocomplete="current-password">
       <button type="button" id="toggleKeyVisibility"><i class="fa-regular fa-eye"></i></button>
     </div>
-    <div class="login-error" id="loginErrMsg">Invalid Access Key</div>
+    <div class="login-error" id="loginErrMsg">Sign in to continue</div>
     <button class="btn btn-primary btn-block" style="padding:14px;" onclick="verifyAdminKey()">
       <i class="fa-solid fa-lock-open"></i>Enter Control Panel
     </button>
@@ -924,7 +927,8 @@ function getLockoutRemaining() {
 }
 
 function verifyAdminKey() {
-  const input = $('#adminKeyInput');
+  const emailEl = $('#adminEmailInput');
+  const passEl = $('#adminKeyInput');
   const errEl = $('#loginErrMsg');
 
   const lockedFor = getLockoutRemaining();
@@ -934,24 +938,21 @@ function verifyAdminKey() {
     return;
   }
 
-  const key = input.value.trim();
-  if (!key) {
+  const email = (emailEl.value || '').trim();
+  const pass = passEl.value || '';
+  if (!email || !pass) {
     errEl.style.display = 'block';
-    errEl.textContent = 'Please enter the access key.';
+    errEl.textContent = 'Enter both your admin email and password.';
     return;
   }
 
-  if (adminHashKey(key, 'nx_admin') === ADMIN_KEY_HASH) {
-    localStorage.setItem(ADMIN_SESS_KEY, 'AUTH_OK');
-    localStorage.setItem(ADMIN_SESS_KEY + '_at', String(Date.now()));
-    localStorage.removeItem('nx_admin_attempts');
-    localStorage.removeItem('nx_admin_lock_until');
-    input.value = '';
-    errEl.style.display = 'none';
-    $('#loginOverlay').classList.add('gone');
-    admToast('Admin authenticated successfully');
-    if (typeof setAdminTab === 'function') setAdminTab(AdminState.currentTab || 'dashboard');
-  } else {
+  if (!auth || typeof auth.signInWithEmailAndPassword !== 'function') {
+    errEl.style.display = 'block';
+    errEl.textContent = 'Authentication unavailable. Check your connection.';
+    return;
+  }
+
+  const fail = msg => {
     const attempts = Number(localStorage.getItem('nx_admin_attempts') || 0) + 1;
     localStorage.setItem('nx_admin_attempts', String(attempts));
     errEl.style.display = 'block';
@@ -960,16 +961,47 @@ function verifyAdminKey() {
       localStorage.setItem('nx_admin_attempts', '0');
       errEl.textContent = 'Too many failed attempts. Locked for 5 minutes.';
     } else {
-      errEl.textContent = `Invalid access key. ${ADMIN_MAX_ATTEMPTS - attempts} attempt(s) remaining.`;
+      errEl.textContent = `${msg} ${ADMIN_MAX_ATTEMPTS - attempts} attempt(s) remaining.`;
     }
-  }
+  };
+
+  // Real credential check. Firebase Auth verifies the password server-side, and the
+  // database rules then trust `auth.token.admin`. The previous client-side digest was
+  // a UI barrier only — anyone could call the same database paths directly.
+  auth.signInWithEmailAndPassword(email, pass)
+    .then(cred => cred.user.getIdTokenResult())
+    .then(res => {
+      if (!res || !res.claims || res.claims.admin !== true) {
+        return auth.signOut().then(() => { throw Object.assign(new Error('not-admin'), { code: 'app/not-admin' }); });
+      }
+      localStorage.setItem(ADMIN_SESS_KEY, 'AUTH_OK');
+      localStorage.setItem(ADMIN_SESS_KEY + '_at', String(Date.now()));
+      localStorage.removeItem('nx_admin_attempts');
+      localStorage.removeItem('nx_admin_lock_until');
+      passEl.value = '';
+      errEl.style.display = 'none';
+      $('#loginOverlay').classList.add('gone');
+      admToast('Admin authenticated successfully');
+      if (typeof setAdminTab === 'function') setAdminTab(AdminState.currentTab || 'dashboard');
+      initAdmin();
+    })
+    .catch(err => {
+      const code = (err && err.code) || '';
+      if (code === 'app/not-admin') fail('This account does not have admin access.');
+      else if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || code === 'auth/user-not-found') fail('Invalid email or password.');
+      else if (code === 'auth/too-many-requests') fail('Too many attempts. Try again later.');
+      else fail('Sign-in failed. Check your connection.');
+    });
 }
 
-function adminLogout() {
+function adminSignOut() {
+  if (auth) auth.signOut().catch(() => {});
   localStorage.removeItem(ADMIN_SESS_KEY);
   localStorage.removeItem(ADMIN_SESS_KEY + '_at');
   location.reload();
 }
+
+function adminLogout() { adminSignOut(); }
 
 $('#toggleKeyVisibility').onclick = () => {
   const inp = $('#adminKeyInput');

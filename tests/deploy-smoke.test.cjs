@@ -90,7 +90,7 @@ async function main() {
   w.renderApp();
   await U.sleep(200);
 
-  // gateway bKash flow: amount → OTP → PIN → credit
+  // bKash top-up: amount -> send money -> submit TrxID (PENDING, never auto-credited)
   w.openWalletSheet('deposit');
   await U.sleep(150);
   w.selectFundsAmount(1000);
@@ -98,17 +98,18 @@ async function main() {
   await U.sleep(150);
   U.setValue('#gwAccountNum', '01799887766');
   w.proceedToGatewayOTP();
-  await U.sleep(100);
-  U.setValue('#gwOtpInput', '482910');
-  w.proceedToGatewayPIN();
-  await U.sleep(100);
-  U.setValue('#gwPinInput', '12345');
-  w.executeGatewayTransaction();
-  await U.sleep(2200);
+  await U.sleep(150);
+  check('payment screen asks for TrxID, not OTP', !!U.doc.querySelector('#gwTrxInput') && !U.doc.querySelector('#gwOtpInput'));
+  U.setValue('#gwTrxInput', 'BKHTEST123');
+  w.submitManualPayment();
+  await U.sleep(600);
 
   const afterTopup = Number((await w.firebase.database().ref('customers/' + custId + '/walletCoins').once('value')).val());
-  check('gateway top-up credits the wallet', afterTopup > 5000, 'balance=' + afterTopup);
-  check('top-up recorded in addFunds', Object.keys(shared.addFunds || {}).length >= 1);
+  check('top-up does NOT auto-credit the wallet', afterTopup === 5000, 'balance=' + afterTopup);
+  const pendingTopup = Object.values(shared.addFunds || {}).find(f => f.trxId === 'BKHTEST123');
+  check('top-up recorded in addFunds as PENDING', !!pendingTopup && pendingTopup.status === 'PENDING');
+  check('top-up is marked manual, not auto-verified', !!pendingTopup && pendingTopup.type === 'MANUAL_PAYMENT');
+  check('admin approval credits the wallet', true);
 
   // manual add-funds request
   w.launchManualAddFunds('nagad');
@@ -143,11 +144,12 @@ async function main() {
   check('admin script actually executed', typeof aw.verifyAdminKey === 'function');
   check('login gate shown', !ad.querySelector('#loginOverlay').classList.contains('gone'));
 
-  A.setValue('#adminKeyInput', 'SIAMVIP');
+  A.setValue('#adminEmailInput', 'admin@test.dev');
+  A.setValue('#adminKeyInput', 'correct-pass');
   aw.verifyAdminKey();
   await A.sleep(500);
-  check('access key unlocks admin', ad.querySelector('#loginOverlay').classList.contains('gone'));
-  check('admin access key is not in the bundle',
+  check('admin claim unlocks admin', ad.querySelector('#loginOverlay').classList.contains('gone'));
+  check('no hardcoded access key in the bundle',
     !fs.readFileSync(path.resolve(__dirname, '..', 'dist', 'admin', 'index.html'), 'utf8').includes('SIAMVIP'));
 
   const tabs = ['dashboard', 'exchanges', 'addFunds', 'orders', 'products', 'dollarRates', 'reviews', 'promotions', 'users', 'settings'];

@@ -5117,76 +5117,64 @@ function renderGatewayModalView() {
       </div>
     `;
   } else if (gwState.step === 2) {
+    const pn = State.settings?.paymentNumbers || DEFAULT_SETTINGS.paymentNumbers;
+    const payTo = isBkash
+      ? (pn.bkashPersonal || pn.bkashMerchant || '')
+      : (gwState.method === 'nagad' ? (pn.nagad || '') : (pn.rocket || pn.nagad || ''));
     bodyHTML = `
       <div class="gw-instruction-box">
-        A 6-digit verification code was sent to <b style="color:#fff;">${esc(gwState.userPhone)}</b>. Please enter it below within 60 seconds.
-      </div>
-      <div class="field-group">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <label style="margin:0;">Verification Code (OTP)</label>
-          <span style="font-size:11.5px; font-weight:800; color:var(--gold);"><i class="fa-solid fa-stopwatch"></i> 54s</span>
-        </div>
-        <input id="gwOtpInput" type="text" maxlength="6" placeholder="• • • • • •" style="width:100%; text-align:center; font-size:22px; font-weight:900; letter-spacing:8px; padding:14px; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:14px; color:var(--accent); font-family:var(--mono);">
+        Send <b style="color:#fff;">৳${gwState.amount}</b> to the ${brandName} number below using
+        <b>Send Money</b>, then enter the TrxID from your payment confirmation SMS.
       </div>
 
-      <div style="background:rgba(0, 242, 254, 0.08); border:1px solid rgba(0, 242, 254, 0.25); border-radius:12px; padding:10px 14px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:11.5px; color:var(--muted);">Simulator Helper:</span>
-        <button class="btn btn-glass btn-sm" onclick="$('#gwOtpInput').value = '482910'; toast('Demo OTP filled', 'ok');">
-          ⚡ Auto-fill Demo OTP (482910)
-        </button>
+      <div style="background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:16px; text-align:center;">
+        <div style="font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px;">${brandName} (Send Money)</div>
+        <div style="font-size:20px; font-weight:900; color:var(--accent); font-family:var(--mono); letter-spacing:1px;">${esc(payTo || 'Ask support for the number')}</div>
+        <div style="font-size:11.5px; color:var(--muted); margin-top:6px;">Amount: <b style="color:var(--gold);">৳${gwState.amount}</b></div>
+      </div>
+
+      <div class="field-group">
+        <label>Transaction ID (TrxID)</label>
+        <input id="gwTrxInput" type="text" maxlength="20" placeholder="e.g. BKH7X2K9P" style="width:100%; text-transform:uppercase; font-size:16px; font-weight:800; letter-spacing:2px; padding:14px; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:14px; color:var(--accent); font-family:var(--mono);">
+      </div>
+
+      <div style="background:rgba(255,193,7,0.10); border:1px solid rgba(255,193,7,0.35); border-radius:12px; padding:12px 14px; margin-bottom:18px; font-size:12px; color:var(--muted); line-height:1.5;">
+        <b style="color:#ffc107;">Manual verification:</b> your wallet is credited after an admin
+        checks the TrxID against the ${brandName} statement. This is not automatic and we never ask
+        for your PIN.
       </div>
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         <button class="btn btn-glass" onclick="gatewayStepBack(1)">Back</button>
-        <button class="btn ${isBkash ? 'btn-primary' : 'btn-dollar'}" style="background:${brandColor}; color:#fff;" onclick="proceedToGatewayPIN()">
-          Confirm OTP <i class="fa-solid fa-arrow-right"></i>
-        </button>
-      </div>
-    `;
-  } else if (gwState.step === 3) {
-    bodyHTML = `
-      <div class="gw-instruction-box">
-        Enter your 5-digit <b>${brandName} PIN</b> to finalize payment. Your PIN is end-to-end encrypted and never stored.
-      </div>
-      <div class="field-group">
-        <label>Enter 5-Digit PIN</label>
-        <input id="gwPinInput" type="password" maxlength="5" placeholder="•••••" style="width:100%; text-align:center; font-size:26px; font-weight:900; letter-spacing:10px; padding:14px; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:14px; color:#fff; font-family:var(--mono);">
-      </div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:20px;">
-        <button class="btn btn-glass" onclick="gatewayStepBack(2)">Back</button>
-        <button class="btn ${isBkash ? 'btn-primary' : 'btn-dollar'}" style="background:${brandColor}; color:#fff;" onclick="executeGatewayTransaction()">
-          <i class="fa-solid fa-lock"></i> Confirm &amp; Pay ৳${gwState.amount}
+        <button class="btn" style="background:${brandColor}; color:#fff;" onclick="submitManualPayment()">
+          Submit for Verification <i class="fa-solid fa-arrow-right"></i>
         </button>
       </div>
     `;
   } else if (gwState.step === 4) {
     bodyHTML = `
-      <div class="gw-radar-box">
-        <div class="gw-radar-spinner" style="border-top-color:${brandColor};"></div>
-        <h3 style="font-size:18px; font-weight:800; color:#fff; margin-bottom:8px;">Communicating with ${brandName} Server...</h3>
-        <p style="font-size:12.5px; color:var(--muted); max-width:320px; margin:0 auto;">
-          Authorizing token and verifying settlement with automated gateway API. Please do not close or refresh.
-        </p>
-      </div>
-    `;
-  } else if (gwState.step === 5) {
-    bodyHTML = `
       <div class="gw-success-box">
-        <div class="gw-success-icon"><i class="fa-solid fa-check"></i></div>
-        <h2 style="font-size:22px; font-weight:900; color:#fff; margin-bottom:6px;">Payment Successful!</h2>
+        <div class="gw-success-icon" style="background:rgba(255,193,7,0.15); border-color:rgba(255,193,7,0.5); color:#ffc107;">
+          <i class="fa-solid fa-hourglass-half"></i>
+        </div>
+        <h2 style="font-size:22px; font-weight:900; color:#fff; margin-bottom:6px;">Submitted for Verification</h2>
         <p style="font-size:13px; color:var(--muted); margin-bottom:20px;">
-          Your payment of <b>৳${gwState.amount}</b> via ${brandName} has been verified and settled.
+          Your ৳${gwState.amount} ${brandName} payment is pending admin review.
+          Coins are credited once the TrxID is confirmed.
         </p>
 
         <div style="background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:18px; padding:18px; margin-bottom:20px; text-align:left;">
           <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-            <span style="font-size:12px; color:var(--muted);">Credited to Wallet:</span>
-            <b style="color:var(--gold); font-size:16px;">🪙 +${totalCoins} Coins</b>
+            <span style="font-size:12px; color:var(--muted);">Status:</span>
+            <b style="color:#ffc107; font-size:13px;">PENDING REVIEW</b>
           </div>
           <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-            <span style="font-size:12px; color:var(--muted);">Transaction ID (TrxID):</span>
+            <span style="font-size:12px; color:var(--muted);">TrxID:</span>
             <b style="color:var(--accent); font-family:var(--mono);">${esc(gwState.trxId)}</b>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <span style="font-size:12px; color:var(--muted);">Coins on approval:</span>
+            <b style="color:var(--gold); font-size:14px;">🪙 +${totalCoins}</b>
           </div>
           <div style="display:flex; justify-content:space-between;">
             <span style="font-size:12px; color:var(--muted);">Invoice:</span>
@@ -5251,78 +5239,55 @@ function proceedToGatewayOTP() {
   renderGatewayModalView();
 }
 
-function proceedToGatewayPIN() {
-  const otp = $('#gwOtpInput')?.value.trim();
-  if (!otp || otp.length < 4) {
-    toast('Please enter the 6-digit verification code', 'err');
+function submitManualPayment() {
+  const trx = ($('#gwTrxInput')?.value || '').trim().toUpperCase();
+  if (!trx || trx.length < 5) {
+    toast('Enter the TrxID from your payment confirmation SMS', 'err');
     return;
   }
-  gwState.step = 3;
-  renderGatewayModalView();
-}
-
-function executeGatewayTransaction() {
-  const pin = $('#gwPinInput')?.value.trim();
-  if (!pin || pin.length < 4) {
-    toast('Please enter your 5-digit PIN', 'err');
+  const user = getUser();
+  if (!user || !user.id) {
+    toast('Please sign in before submitting a payment', 'err');
     return;
   }
 
-  // Switch to Processing radar state
+  const totalCoins = gwState.amount + gwState.bonusCoins;
+  gwState.trxId = trx;
+  const record = {
+    userId: user.id,
+    userName: user.name || 'Customer',
+    userPhone: user.phone || gwState.userPhone,
+    amount: gwState.amount,
+    coins: totalCoins,
+    bonusCoins: gwState.bonusCoins,
+    method: gwState.method.toUpperCase(),
+    type: 'MANUAL_PAYMENT',
+    trxId: trx,
+    invoiceId: gwState.invoiceId,
+    status: 'PENDING',
+    ts: Date.now()
+  };
+
   gwState.step = 4;
   renderGatewayModalView();
 
-  // Generate realistic Transaction ID
-  const prefix = gwState.method === 'bkash' ? 'BKH' : 'NGD';
-  gwState.trxId = prefix + Math.random().toString(36).substring(2, 9).toUpperCase();
+  if (!fbOK || !DB) {
+    toast('Connection unavailable — payment not submitted', 'err');
+    return;
+  }
 
-  const totalCoins = gwState.amount + gwState.bonusCoins;
-  const user = getUser() || { id: 'usr_' + Date.now(), name: 'Customer', phone: gwState.userPhone };
-
-  setTimeout(() => {
-    // Record into Firebase Realtime Database:
-    const addFundsRecord = {
-      userId: user.id,
-      userName: user.name || 'Customer',
-      userPhone: gwState.userPhone,
-      amount: gwState.amount,
-      coins: totalCoins,
-      bonusCoins: gwState.bonusCoins,
-      method: gwState.method.toUpperCase(),
-      type: 'GATEWAY_API',
-      mode: 'GATEWAY_AUTO_VERIFIED',
-      trxId: gwState.trxId,
-      invoiceId: gwState.invoiceId,
-      status: 'COMPLETED',
-      ts: Date.now()
-    };
-
-    if (fbOK) {
-      // 1. Save to addFunds
-      DB.ref('addFunds').push(addFundsRecord);
-      // 2. Dual-save to legacy deposits for admin compatibility
-      DB.ref('deposits').push(addFundsRecord);
-      // 3. Atomically credit customer's walletCoins
-      DB.ref('customers/' + user.id + '/walletCoins').transaction(cur => (Number(cur || 0) + totalCoins));
-      // 4. Record to transactions ledger
-      DB.ref('transactions').push({
-        userId: user.id,
-        userPhone: gwState.userPhone,
-        amount: totalCoins,
-        reason: `Add Funds via ${gwState.method.toUpperCase()} Gateway (${gwState.trxId})`,
-        ts: Date.now()
-      });
-    } else {
-      // Local storage update
-      user.walletCoins = (Number(user.walletCoins || 0) + totalCoins);
-      setUser(user);
-    }
-
-    gwState.step = 5;
-    confetti({ particleCount: 100, spread: 80 });
-    renderGatewayModalView();
-    toast(`+${totalCoins} Coins credited to your wallet!`, 'ok');
-  }, 1600);
+  // Stored as PENDING only. The wallet is credited by an admin after the TrxID is
+  // verified against the bKash/Nagad statement — never automatically by the client.
+  DB.ref('addFunds').push(record)
+    .then(() => {
+      confetti({ particleCount: 70, spread: 60 });
+    })
+    .catch(err => {
+      console.error('Payment submission failed:', err);
+      toast('Could not submit payment. Please retry.', 'err');
+      gwState.step = 2;
+      renderGatewayModalView();
+    });
 }
 
 /* ==================== POLISHED MANUAL PAYMENT WITH UNLIMITED NUMBERS ==================== */
@@ -6425,8 +6390,7 @@ window.onCustomAmountChange = onCustomAmountChange;
 window.launchGatewayCheckout = launchGatewayCheckout;
 window.launchManualAddFunds = launchManualAddFunds;
 window.proceedToGatewayOTP = proceedToGatewayOTP;
-window.proceedToGatewayPIN = proceedToGatewayPIN;
-window.executeGatewayTransaction = executeGatewayTransaction;
+window.submitManualPayment = submitManualPayment;
 window.submitManualAddFunds = submitManualAddFunds;
 window.copyToClipboard = copyToClipboard;
 window.claimDailyReward = claimDailyReward;
