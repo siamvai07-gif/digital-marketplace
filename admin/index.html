@@ -975,19 +975,18 @@ function verifyAdminKey() {
     .then(unlock)
     .catch(err => {
       const code = (err && err.code) || '';
-      if (code === 'auth/user-not-found') {
-        // First run with the correct key: create the admin account.
+      if (code === 'auth/too-many-requests') {
+        fail('Too many attempts. Try again later.');
+        return;
+      }
+      if (code === 'auth/wrong-password') {
+        // Supabase reports the same "invalid credentials" for a missing account
+        // as for a wrong key. Signing up with the right key succeeds either way,
+        // so this doubles as the first-run account creation. A genuine typo is
+        // still rejected, because signup then reports "already registered".
         auth.createUserWithEmailAndPassword(ADMIN_AUTH_EMAIL, key)
           .then(unlock)
           .catch(() => fail('Invalid access key.'));
-        return;
-      }
-      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        fail('Invalid access key.');
-        return;
-      }
-      if (code === 'auth/too-many-requests') {
-        fail('Too many attempts. Try again later.');
         return;
       }
       fail('Sign-in failed. Check your connection.');

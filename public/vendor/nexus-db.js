@@ -524,12 +524,27 @@ function authAdapter() {
   };
 }
 
+// Supabase GoTrue reports "Invalid login credentials" for both a wrong password
+// and a non-existent account (that ambiguity is deliberate, to stop account
+// enumeration). A duplicated signup says "User already registered", which is the
+// only reliable signal that the account exists - the callers use it to decide
+// whether a first-run admin account still needs creating.
 function mapAuthError(err) {
   const m = String((err && err.message) || '').toLowerCase();
-  if (m.includes('invalid login')) return 'auth/wrong-password';
-  if (m.includes('already registered') || m.includes('already been registered')) return 'auth/email-already-in-use';
-  if (m.includes('user not found')) return 'auth/user-not-found';
-  if (m.includes('rate limit') || m.includes('too many')) return 'auth/too-many-requests';
+  const code = String((err && (err.code || err.error_code)) || '').toLowerCase();
+  if (m.includes('already registered') || m.includes('already been registered') ||
+      code.includes('user_already_exists') || code.includes('email_exists')) {
+    return 'auth/email-already-in-use';
+  }
+  if (m.includes('invalid login') || m.includes('invalid credentials') ||
+      code.includes('invalid_credentials')) {
+    return 'auth/wrong-password';
+  }
+  if (m.includes('user not found') || code.includes('user_not_found')) return 'auth/user-not-found';
+  if (m.includes('rate limit') || m.includes('too many') || code.includes('over_request_rate_limit')) {
+    return 'auth/too-many-requests';
+  }
+  if (m.includes('anonymous') || code.includes('anonymous')) return 'auth/anonymous-disabled';
   return 'auth/unknown';
 }
 
@@ -551,4 +566,5 @@ window.NexusDB = {
   _cache: cache,
   _fetchTable: fetchTable,
   _parsePath: parsePath,
+  _mapAuthErrorForTest: mapAuthError,
 };

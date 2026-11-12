@@ -196,6 +196,26 @@ const { DB } = sandbox.window.NexusDB;
   try { await auth.signInAnonymously(); } catch (e) { anonCode = e.code; }
   check('anonymous auth is explicitly unavailable, not silently faked', anonCode === 'auth/anonymous-disabled');
 
+
+  section('Auth error mapping (real GoTrue messages)');
+  // These are the exact messages Supabase returns; the admin login branch logic
+  // depends on them being classified correctly.
+  const cases = [
+    ['Invalid login credentials', 'auth/wrong-password'],
+    ['User already registered', 'auth/email-already-in-use'],
+    ['Anonymous sign-ins are disabled', 'auth/anonymous-disabled'],
+    ['Email rate limit exceeded', 'auth/too-many-requests'],
+  ];
+  for (const [msg, expected] of cases) {
+    let got = null;
+    try {
+      sandbox.__fakeAuthError = msg;
+      await sandbox.window.NexusDB._mapAuthErrorForTest({ message: msg });
+    } catch (e) { got = e.code; }
+    const mapped = sandbox.window.NexusDB._mapAuthErrorForTest({ message: msg });
+    check(`"${msg}" maps to ${expected}`, mapped === expected, 'got ' + mapped);
+  }
+
   console.log('\n' + '='.repeat(56));
   console.log(`${passed} passed, ${failures.length} failed`);
   if (failures.length) process.exit(1);
