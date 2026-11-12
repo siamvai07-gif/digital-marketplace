@@ -198,6 +198,26 @@ async function main() {
   check('voucher visible to customer', orderHtml.includes('CANVA-DEPLOY-CODE'));
   check('delivered status visible', orderHtml.includes('DELIVERED'));
 
+  // ── Real-time: an admin update lands without a page refresh ──────
+  section('Real-time order sync (no refresh)');
+  check('live order listener installed', typeof w.startUserOrdersListener === 'function');
+  {
+    // Capture markup, then mutate the order the way an admin would and let the
+    // live listener push the change through.
+    const before = d.querySelector('#appView').innerHTML;
+    const oid = Object.keys(shared.orders || {})[0];
+    if (oid) {
+      await w.firebase.database().ref('orders/' + oid).update({ status: 'REFUNDED', refundReason: 'Live sync probe' });
+      await U.sleep(400);
+      const after = d.querySelector('#appView').innerHTML;
+      check('order status updated live without re-render call',
+        after.includes('REFUNDED') && !before.includes('REFUNDED'));
+      check('admin edit propagated its detail text', after.includes('Live sync probe'));
+    } else {
+      check('order present for live-sync test', false, 'no order found');
+    }
+  }
+
   // ── Runtime errors ────────────────────────────────────────────────
   section('Runtime console');
   const uErr = U.errors.filter(e => !/auth\/|Firebase/i.test(e));
