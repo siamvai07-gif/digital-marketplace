@@ -982,13 +982,13 @@ $('#adminKeyInput').addEventListener('keydown', e => {
 
 /* ==================== FIREBASE CONFIG ==================== */
 const firebaseConfig = {
-  apiKey: "AIzaSyD-Ijy5bF1RFpwCbEiZEHyFPdMOjeEbAE4",
-  authDomain: "gen-lang-client-0247496189.firebaseapp.com",
-  databaseURL: "https://gen-lang-client-0247496189-default-rtdb.firebaseio.com",
-  projectId: "gen-lang-client-0247496189",
-  storageBucket: "gen-lang-client-0247496189.firebasestorage.app",
-  messagingSenderId: "75421939355",
-  appId: "1:75421939355:web:cebfd39dcf1f20c727f83e"
+  apiKey: "AIzaSyCf8Pomao5Cnl8Hu3vz6Y-P4xMgiI49hwk",
+  authDomain: "banglabet-blitz.firebaseapp.com",
+  databaseURL: "https://banglabet-blitz-default-rtdb.firebaseio.com",
+  projectId: "banglabet-blitz",
+  storageBucket: "banglabet-blitz.firebasestorage.app",
+  messagingSenderId: "355956389121",
+  appId: "1:355956389121:web:d5f1054f1480a9327c5700"
 };
 
 let DB = null;
@@ -999,6 +999,16 @@ try {
     DB = firebase.database();
     if (typeof firebase.auth === 'function') {
       auth = firebase.auth();
+      // Admin reads the whole database, which rules gate behind `auth != null`.
+      if (typeof auth.onAuthStateChanged === 'function' && typeof auth.signInAnonymously === 'function') {
+        auth.onAuthStateChanged(u => {
+          if (!u) {
+            Promise.resolve(auth.signInAnonymously()).catch(err => {
+              console.warn('Anonymous auth unavailable:', (err && err.code) || err);
+            });
+          }
+        });
+      }
     }
   }
 } catch (e) {
