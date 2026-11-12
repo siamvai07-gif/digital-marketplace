@@ -202,6 +202,8 @@ input, select, textarea { font-family: inherit; font-size: 14px; color: var(--te
   display: none;
 }
 @media (min-width: 768px) { .hdr-search-box { display: block; } }
+.hdr-mobile-search { display: inline-flex; }
+@media (min-width: 768px) { .hdr-mobile-search { display: none; } }
 .hdr-search-box input {
   width: 100%;
   background: rgba(17, 24, 46, 0.7);
@@ -2631,6 +2633,10 @@ footer a.fl:hover { color: var(--primary); }
           <span class="topup-pill">+ Add</span>
         </button>
 
+        <button class="icon-btn hdr-mobile-search" id="hdrSearchBtn" aria-label="Search" title="Search products">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
+
         <button class="icon-btn" id="hdrWishBtn" aria-label="Wishlist" title="Wishlist">
           <i class="fa-regular fa-heart"></i>
         </button>
@@ -2768,8 +2774,9 @@ function toast(msg, type = 'ok', duration = 3000) {
 
 // Local Storage Helper
 const LS = {
-  get: (k, def) => { try { const v = localStorage.getItem(k); return v === null ? def : JSON.parse(v); } catch(e) { return def; } },
-  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+  get: (k, def) => { try { const v = localStorage.getItem(k); return v === null || v === 'null' ? def : JSON.parse(v); } catch(e) { return def; } },
+  // Writing `null` removes the key so `getItem` can never resurrect a stale session.
+  set: (k, v) => { try { if (v === null || v === undefined) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
 };
 
 // Year update
@@ -2891,6 +2898,25 @@ function extractYouTubeId(urlOrId) {
   return match ? match[1] : 'ysz5S6PUM-U';
 }
 
+function fallbackCopyText(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = typeof document.execCommand === 'function' ? document.execCommand('copy') : false;
+    ta.remove();
+    return ok;
+  } catch (e) {
+    return false;
+  }
+}
+
 function copyCleanNumberOnly(rawText, btnEl) {
   if (!rawText) return;
   let str = String(rawText).trim();
@@ -2900,34 +2926,29 @@ function copyCleanNumberOnly(rawText, btnEl) {
   if (clean.startsWith('+88')) clean = clean.substring(3);
   if (clean.startsWith('8801')) clean = clean.substring(2);
 
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(clean).catch(() => {
-      const ta = document.createElement('textarea');
-      ta.value = clean;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-    });
-  } else {
-    const ta = document.createElement('textarea');
-    ta.value = clean;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-  }
+  const done = () => {
+    if (btnEl) {
+      const origHtml = btnEl.innerHTML;
+      btnEl.innerHTML = '<i class="fa-solid fa-check" style="color:#10b981;"></i> Copied!';
+      btnEl.classList.add('copied');
+      setTimeout(() => {
+        btnEl.innerHTML = origHtml;
+        btnEl.classList.remove('copied');
+      }, 2000);
+    }
+    toast('Copied number only: ' + clean, 'ok');
+  };
 
-  if (btnEl) {
-    const origHtml = btnEl.innerHTML;
-    btnEl.innerHTML = '<i class="fa-solid fa-check" style="color:#10b981;"></i> Copied!';
-    btnEl.classList.add('copied');
-    setTimeout(() => {
-      btnEl.innerHTML = origHtml;
-      btnEl.classList.remove('copied');
-    }, 2000);
+  // The clipboard API needs a secure context; always keep an execCommand fallback.
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+    navigator.clipboard.writeText(clean).then(done).catch(() => {
+      if (fallbackCopyText(clean)) done();
+      else toast('Copy failed — number: ' + clean, 'err', 6000);
+    });
+    return;
   }
-  toast('Copied number only: ' + clean, 'ok');
+  if (fallbackCopyText(clean)) done();
+  else toast('Copy failed — number: ' + clean, 'err', 6000);
 }
 
 const DEFAULT_SETTINGS = {
@@ -3041,7 +3062,15 @@ function getUser() {
 
 function setUser(u) {
   State.user = u;
-  LS.set('nx_user', u);
+  if (u) {
+    // Never persist credential material in the browser session.
+    const safe = { ...u };
+    delete safe.password;
+    delete safe.passwordHash;
+    LS.set('nx_user', safe);
+  } else {
+    LS.set('nx_user', null);
+  }
   updateWalletDisplay();
 }
 
@@ -3052,8 +3081,8 @@ function getWalletCoins() {
 
 function updateWalletDisplay() {
   const coins = getWalletCoins();
-  const badgeText = `${fmtNum(coins)} Coins`;
-  $('#hdrCoinVal').textContent = badgeText;
+  const el = $('#hdrCoinVal');
+  if (el) el.textContent = `${fmtNum(coins)} Coins`;
 }
 
 // Subscribe to real-time user wallet balance updates
@@ -3068,11 +3097,44 @@ function listenUserWallet(userId) {
   });
 }
 
+// Every wallet mutation funnels through here, so account state is re-validated
+// against the database instead of trusting a possibly stale local session.
+function requireActiveAccount(onAllowed) {
+  const u = getUser();
+  if (!u || !u.id) {
+    toast('Please login to use wallet balance', 'err');
+    if (typeof openAuthModal === 'function') openAuthModal('login');
+    return;
+  }
+  if (String(u.status || '').toUpperCase() === 'SUSPENDED') {
+    toast('Your account is suspended. Please contact support.', 'err');
+    return;
+  }
+  if (!fbOK || !DB) { onAllowed(u); return; }
+  DB.ref('customers/' + u.id + '/status').once('value', snap => {
+    if (String(snap.val() || '').toUpperCase() === 'SUSPENDED') {
+      toast('Your account is suspended. Please contact support.', 'err');
+      LS.set('nx_user', null);
+      State.user = null;
+      updateUserHeaderBadge();
+      updateWalletDisplay();
+      renderApp();
+      return;
+    }
+    onAllowed(u);
+  }, () => onAllowed(u));
+}
+
 // Atomic Wallet Coins Mutation
 function modifyWalletCoins(amountDelta, reason, callback) {
   const u = getUser();
   if (!u || !u.id) {
     toast('Please login to use wallet balance', 'err');
+    if (typeof openAuthModal === 'function') openAuthModal('login');
+    return;
+  }
+  if (String(u.status || '').toUpperCase() === 'SUSPENDED') {
+    toast('Your account is suspended. Please contact support.', 'err');
     return;
   }
   if (!fbOK) {
@@ -3087,7 +3149,8 @@ function modifyWalletCoins(amountDelta, reason, callback) {
     return;
   }
 
-  const userRef = DB.ref('customers/' + u.id);
+  requireActiveAccount(activeUser => {
+  const userRef = DB.ref('customers/' + activeUser.id);
   userRef.child('walletCoins').transaction(cur => {
     const balance = Number(cur || 0);
     if (amountDelta < 0 && balance + amountDelta < 0) {
@@ -3101,17 +3164,18 @@ function modifyWalletCoins(amountDelta, reason, callback) {
     } else {
       // Record transaction ledger entry
       const tx = {
-        userId: u.id,
-        userPhone: u.phone || '',
+        userId: activeUser.id,
+        userPhone: activeUser.phone || '',
         amount: amountDelta,
         balanceAfter: snapshot.val(),
         reason: reason || 'Wallet Adjustment',
         ts: Date.now()
       };
-      DB.ref('transactions').push(tx);
+      DB.ref('transactions').push(tx).catch(() => {});
       toast(amountDelta > 0 ? `+${amountDelta} Coins added!` : `${Math.abs(amountDelta)} Coins deducted`, 'ok');
       if (callback) callback(true, snapshot.val());
     }
+  });
   });
 }
 
@@ -3123,8 +3187,9 @@ function saveCart(c) {
   updateCartBadge();
 }
 function updateCartBadge() {
-  const total = State.cart.reduce((s, i) => s + (Number(i.qty) || 1), 0);
+  const total = (State.cart || []).reduce((s, i) => s + (Number(i.qty) || 1), 0);
   const badge = $('#cartBadgeCount');
+  if (!badge) return;
   badge.textContent = total;
   badge.classList.toggle('hidden', total === 0);
 }
@@ -3343,7 +3408,7 @@ function viewHome() {
             <div class="input-with-select">
               <input id="calcAmountUSD" type="number" value="50" min="5" step="1" oninput="updateExchangeCalc()" placeholder="Amount in USD">
               <select id="calcCurrencySelect" onchange="updateExchangeCalc()">
-                ${Object.values(r).map(c => `<option value="${c.id}" ${State.selectedExchangeCurrency === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                ${Object.values(r).map(c => `<option value="${esc(c.id)}" ${State.selectedExchangeCurrency === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
               </select>
             </div>
           </div>
@@ -3797,17 +3862,9 @@ function submitCustomerReview() {
 }
 
 /* ==================== PRODUCT CARDS RENDERER ==================== */
-function renderProductCards(filterCategory = 'all') {
-  const prods = Object.entries(State.products).map(([id, p]) => ({ id, ...p }));
-  let list = prods.filter(p => p.visible !== false);
-
-  if (filterCategory !== 'all') {
-    list = list.filter(p => p.category === filterCategory);
-  }
-
-  // If no products in DB yet, show high-converting default catalog
-  if (!list.length) {
-    const defaultCatalog = [
+/* Built-in catalog used when the admin has not published products yet. */
+function getDefaultCatalog() {
+  return [
       { id: 'prod_ff_610', name: 'Free Fire 610 Diamonds (UID Top-Up)', category: 'games', price: 415, coins: 415, badge: 'BESTSELLER', image: '/assets/aistudio/UID_TOPUP_dd448c6f.png', desc: 'Instant Player UID direct top-up. BD & Global servers supported.' },
       { id: 'prod_ff_friday', name: 'Free Fire Friday Special Offer', category: 'games', price: 190, coins: 190, badge: 'FRIDAY DEAL', image: '/assets/aistudio/Friday_Offer_aca93410.png', desc: 'Exclusive Friday bonus diamond package with extra in-game rewards.' },
       { id: 'prod_ff_weekly', name: 'Free Fire Weekly Pass', category: 'games', price: 170, coins: 170, badge: 'POPULAR', image: '/assets/aistudio/Weekly_Offer__95074e40.png', desc: '450 total diamonds value + daily check-in rewards for 7 days.' },
@@ -3818,8 +3875,29 @@ function renderProductCards(filterCategory = 'all') {
       { id: 'prod_pubg_660', name: 'PUBG Mobile 660 UC (Global Character ID)', category: 'games', price: 940, coins: 940, badge: 'HOT', image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&q=80&auto=format&fit=crop', desc: 'Direct Character ID instant top-up within 30 seconds.' },
       { id: 'prod_canva', name: 'Canva Pro Lifetime Access', category: 'subscriptions', price: 199, coins: 199, badge: 'POPULAR', image: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=600&q=80&auto=format&fit=crop', desc: 'Own email upgrade. Brand kits, unlimited templates & AI features.' },
       { id: 'prod_chatgpt', name: 'ChatGPT Plus (GPT-4o / Canvas)', category: 'ai-tools', price: 450, coins: 450, badge: 'AI TOOLS', image: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=600&q=80&auto=format&fit=crop', desc: 'Instant private profile access. Unlimited prompts & image generation.' }
-    ];
-    list = filterCategory === 'all' ? defaultCatalog : defaultCatalog.filter(p => p.category === filterCategory);
+  ];
+}
+
+/* Resolve a product from live DB state, falling back to the built-in catalog. */
+function findProduct(pid) {
+  if (!pid) return null;
+  if (State.products && State.products[pid]) return { id: pid, ...State.products[pid] };
+  return getDefaultCatalog().find(p => p.id === pid) || null;
+}
+
+function renderProductCards(filterCategory = 'all') {
+  const inStockOnly = list => list.filter(p => p.inStock !== false && p.stock !== false);
+  let list = Object.entries(State.products || {})
+    .map(([id, p]) => ({ id, ...p }))
+    .filter(p => p.visible !== false)
+    .filter(p => filterCategory === 'all' || p.category === filterCategory);
+
+  // If nothing is published in the DB for this category, use the built-in catalog
+  // so the storefront is never empty for a valid category page.
+  if (!list.length) {
+    const defaultCatalog = getDefaultCatalog()
+      .filter(p => filterCategory === 'all' || p.category === filterCategory);
+    list = defaultCatalog;
   }
 
   return list.map(p => {
@@ -3883,7 +3961,7 @@ function updateExchangeCalc() {
   const subtotalBDT = usd * rate;
   const feePct = rateInfo.fee || 0;
   const feeBDT = (subtotalBDT * feePct) / 100;
-  const totalBDT = State.selectedExchangeTab === 'buy' ? (subtotalBDT + feeBDT) : (subtotalBDT - feeBDT);
+  const totalBDT = Math.round(State.selectedExchangeTab === 'buy' ? (subtotalBDT + feeBDT) : (subtotalBDT - feeBDT));
 
   bdtInput.value = fmt(totalBDT);
 
@@ -3892,14 +3970,14 @@ function updateExchangeCalc() {
       summaryBox.innerHTML = `
         <div class="sum-row"><span>Exchange Rate:</span><b>1 USD = ${fmt(rate)}</b></div>
         <div class="sum-row"><span>USD Amount:</span><b>${fmtUSD(usd)}</b></div>
-        <div class="sum-row"><span>Service Fee (${feePct}%):</span><b>${fmt(feeBDT)}</b></div>
+        <div class="sum-row"><span>Service Fee (${feePct}%):</span><b>${fmt(Math.round(feeBDT))}</b></div>
         <div class="sum-row total"><span>Total Payable:</span><b>${fmt(totalBDT)} (${fmtNum(totalBDT)} Coins)</b></div>
       `;
     } else {
       summaryBox.innerHTML = `
         <div class="sum-row"><span>Exchange Rate (We Buy):</span><b>1 USD = ${fmt(rate)}</b></div>
         <div class="sum-row"><span>USD You Send:</span><b>${fmtUSD(usd)}</b></div>
-        <div class="sum-row"><span>Service Fee:</span><b>${fmt(feeBDT)}</b></div>
+        <div class="sum-row"><span>Service Fee:</span><b>${fmt(Math.round(feeBDT))}</b></div>
         <div class="sum-row total"><span>You Receive:</span><b>${fmt(totalBDT)}</b></div>
       `;
     }
@@ -3916,13 +3994,27 @@ function submitDollarExchange() {
     toast(`Minimum exchange limit for ${curr.name} is $${curr.min || 5}`, 'err');
     return;
   }
+  if (curr.max && usd > curr.max) {
+    toast(`Maximum exchange limit for ${curr.name} is $${curr.max}`, 'err');
+    return;
+  }
   if (!accountInfo) {
     toast('Please enter your recipient account / wallet details', 'err');
     return;
   }
+  if (!getUser()) {
+    toast('Please sign in to place an exchange order', 'err');
+    openAuthModal('login');
+    return;
+  }
 
   const rate = State.selectedExchangeTab === 'buy' ? curr.buyRate : curr.sellRate;
-  const totalBDT = usd * rate;
+  const feePct = Number(curr.fee) || 0;
+  const feeBDT = (usd * rate * feePct) / 100;
+  // BUY: customer pays BDT (rate + fee). SELL: customer receives BDT (rate - fee).
+  const totalBDT = State.selectedExchangeTab === 'buy'
+    ? Math.round((usd * rate) + feeBDT)
+    : Math.round((usd * rate) - feeBDT);
 
   // If paying with Wallet
   if (State.selectedExchangeTab === 'buy' && paymentMethod === 'wallet') {
@@ -3938,16 +4030,18 @@ function submitDollarExchange() {
         saveExchangeRecord({
           type: 'BUY',
           currency: curr.name,
+          currencyId: curr.id || '',
           usdAmount: usd,
           rate: rate,
+          fee: feeBDT,
           totalBDT: totalBDT,
           paymentMethod: 'Prepaid Wallet',
           payoutTarget: accountInfo,
-          status: 'COMPLETED',
+          status: 'PENDING',
           txId: 'WLT-' + Date.now().toString(36).toUpperCase()
         });
         confetti({ particleCount: 70, spread: 60 });
-        openOrderSuccessModal('Dollar Purchase Initiated!', `Your request for ${fmtUSD(usd)} ${curr.name} has been processed via Wallet balance. The balance has been credited to ${accountInfo}.`);
+        openOrderSuccessModal('Dollar Buy Request Placed', `Your request to buy ${fmtUSD(usd)} ${curr.name} was paid from your wallet. Our desk is delivering to ${accountInfo} — typically within 5–15 minutes.`);
       }
     });
     return;
@@ -3960,6 +4054,9 @@ function submitDollarExchange() {
     amountBDT: totalBDT,
     usdAmount: usd,
     currency: curr.name,
+    currencyId: curr.id || '',
+    rate: rate,
+    fee: feeBDT,
     payoutTarget: accountInfo,
     paymentMethod: paymentMethod
   });
@@ -3969,14 +4066,19 @@ function saveExchangeRecord(rec) {
   const u = getUser();
   const exchange = {
     ...rec,
-    userId: u?.id || 'guest_' + Date.now(),
+    userId: u?.id || '',
     userName: u?.name || 'Customer',
     userPhone: u?.phone || '',
+    userEmail: u?.email || '',
     ts: Date.now()
   };
-  if (fbOK) {
-    DB.ref('dollarRequests').push(exchange);
+  if (fbOK && DB) {
+    return DB.ref('dollarRequests').push(exchange);
   }
+  const local = LS.get('nx_full_exchanges', []);
+  local.push({ ...exchange, id: 'local_' + Date.now() });
+  LS.set('nx_full_exchanges', local.slice(-50));
+  return null;
 }
 
 /* ==================== GAME TOP-UP ENGINE ==================== */
@@ -4015,6 +4117,12 @@ function instantGameTopup(gameTitle, gameKey) {
   const cost = pack.price;
   const userCoins = getWalletCoins();
 
+  if (!getUser()) {
+    toast('Please sign in to place a top-up order', 'err');
+    openAuthModal('login');
+    return;
+  }
+
   if (userCoins < cost) {
     openModal(`
       <div class="sheet-head">
@@ -4033,29 +4141,72 @@ function instantGameTopup(gameTitle, gameKey) {
     return;
   }
 
-  // Deduct coins & execute order
+  // Deduct coins & create a fulfilable order for the admin desk
   modifyWalletCoins(-cost, `${gameTitle} (${pack.amount}) to UID: ${uid}`, success => {
-    if (success) {
-      const order = {
-        orderId: 'TOP-' + Date.now().toString(36).toUpperCase(),
-        title: `${gameTitle} - ${pack.amount}`,
-        price: cost,
-        playerId: uid,
-        category: 'gaming',
-        paymentMethod: 'Prepaid Wallet',
-        status: 'COMPLETED',
-        ts: Date.now()
-      };
-      if (fbOK) DB.ref('orders').push(order);
-      confetti({ particleCount: 80, spread: 70 });
-      openOrderSuccessModal('Instant Top-Up Delivered!', `Successfully delivered ${pack.amount} to Player ID: ${uid}. Transaction logged to your wallet.`);
-    }
+    if (!success) return;
+    const order = {
+      orderId: 'TOP-' + Date.now().toString(36).toUpperCase(),
+      productName: `${gameTitle} - ${pack.amount}`,
+      title: `${gameTitle} - ${pack.amount}`,
+      price: cost,
+      coins: cost,
+      playerUid: uid,
+      playerId: uid,
+      category: 'games',
+      deliveryType: 'Instant Player UID',
+      paymentMethod: 'Prepaid Wallet',
+      status: 'PENDING',
+      ts: Date.now()
+    };
+    createOrderRecord(order);
+    confetti({ particleCount: 80, spread: 70 });
+    openOrderSuccessModal('Top-Up Order Placed!', `We received ${pack.amount} for Player ID ${uid} and your coins were deducted. Delivery is processed within minutes and the voucher appears in My Orders.`);
   });
+}
+
+// Persist an order with customer identity so the admin desk can fulfil & refund it.
+function createOrderRecord(order) {
+  const u = getUser();
+  const record = {
+    ...order,
+    userId: u?.id || '',
+    userName: u?.name || 'Customer',
+    userPhone: u?.phone || '',
+    userEmail: u?.email || '',
+    createdAt: Date.now()
+  };
+  if (fbOK && DB) {
+    return DB.ref('orders').push(record);
+  }
+  const local = LS.get('nx_orders', []);
+  local.unshift({ ...record, id: 'local_' + Date.now() });
+  LS.set('nx_orders', local.slice(0, 50));
+  return null;
+}
+
+// Load this customer's orders (from Firebase when available, else local cache).
+function loadUserOrders(callback) {
+  const u = getUser();
+  const finish = list => callback(list.filter(o => !u || !o.userId || o.userId === u.id));
+  if (fbOK && DB) {
+    // Read the node and filter client-side: an orderByChild() query would require
+    // an .indexOn rule, and fails with a permission error when it is missing.
+    DB.ref('orders').once('value', snap => {
+      const val = snap.val();
+      const all = val ? Object.entries(val).map(([id, o]) => ({ id, ...o })) : [];
+      const mine = all
+        .filter(o => (o.userId && u && o.userId === u.id) || (o.userPhone && u && u.phone && o.userPhone === u.phone))
+        .sort((a, b) => Number(b.ts || b.createdAt || 0) - Number(a.ts || a.createdAt || 0));
+      finish(mine);
+    }, () => finish(LS.get('nx_orders', [])));
+  } else {
+    finish(LS.get('nx_orders', []));
+  }
 }
 
 /* ==================== PRODUCT DETAIL & MODALS ==================== */
 function openProductDetail(pid) {
-  const p = State.products[pid] || {
+  const p = findProduct(pid) || {
     id: pid,
     name: 'Digital Product',
     price: 199,
@@ -4063,6 +4214,9 @@ function openProductDetail(pid) {
     desc: 'Instant delivery digital license or account access.',
     image: PLH
   };
+  const price = Number(p.price || p.offerPrice || p.regularPrice || 99);
+  const coins = Number(p.coins || price);
+  const outOfStock = p.inStock === false || p.stock === false || p.visible === false;
 
   openModal(`
     <div class="sheet-head">
@@ -4072,18 +4226,29 @@ function openProductDetail(pid) {
     <div class="sheet-body">
       <img src="${safeImg(p.image)}" style="width:100%; border-radius:18px; max-height:260px; object-fit:cover; margin-bottom:16px;" onerror="this.src=PLH">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <span class="d-price" style="font-size:22px; color:var(--primary);">${fmt(p.price)}</span>
-        <span class="d-coins-eq" style="font-size:14px;">🪙 ${fmtNum(p.coins || p.price)} Coins</span>
+        <span class="d-price" style="font-size:22px; color:var(--primary);">${fmt(price)}</span>
+        <span class="d-coins-eq" style="font-size:14px;">🪙 ${fmtNum(coins)} Coins</span>
       </div>
       <p style="color:#cbd5e1; font-size:13.5px; line-height:1.6; margin-bottom:20px;">
         ${esc(p.desc || p.description || 'Verified genuine digital license with immediate fulfillment.')}
       </p>
 
+      ${outOfStock ? `
+        <div style="background:rgba(255,51,102,0.12); border:1px solid rgba(255,51,102,0.35); border-radius:14px; padding:12px 14px; color:var(--danger); font-size:12.5px; font-weight:700; margin-bottom:14px;">
+          <i class="fa-solid fa-triangle-exclamation"></i> This item is currently out of stock. Please check back soon.
+        </div>
+      ` : `
+      <div class="field-group">
+        <label>Player ID / UID / Delivery Email (optional for voucher codes)</label>
+        <input id="pdDeliveryTarget" placeholder="e.g. Free Fire UID 298192019 or your email" style="width:100%; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:14px; padding:12px 14px; color:#fff;">
+      </div>
+      `}
+
       <div style="display:flex; gap:10px;">
-        <button class="btn btn-wallet btn-block" onclick="instantBuyProductWithWallet('${esc(p.id)}', ${p.price || 99})">
+        <button class="btn btn-wallet btn-block" ${outOfStock ? 'disabled style="opacity:.5;cursor:not-allowed;"' : `onclick="instantBuyProductWithWallet('${esc(p.id)}', ${coins})"`}>
           <i class="fa-solid fa-bolt"></i>1-Click Buy With Wallet
         </button>
-        <button class="btn btn-glass" onclick="addToCart({pid:'${esc(p.id)}', title:'${esc(p.name)}', price:${p.price || 99}, image:'${safeImg(p.image)}'}); closeModal();">
+        <button class="btn btn-glass" ${outOfStock ? 'disabled style="opacity:.5;cursor:not-allowed;"' : `onclick="addProductToCart('${esc(p.id)}')"`} aria-label="Add to cart">
           <i class="fa-solid fa-cart-plus"></i>
         </button>
       </div>
@@ -4091,25 +4256,70 @@ function openProductDetail(pid) {
   `);
 }
 
+function addProductToCart(pid) {
+  const p = findProduct(pid);
+  if (!p) { toast('Product unavailable', 'err'); return; }
+  const target = ($('#pdDeliveryTarget')?.value || '').trim();
+  addToCart({
+    pid: p.id,
+    title: p.name,
+    price: Number(p.price || p.coins || 0),
+    coins: Number(p.coins || p.price || 0),
+    image: p.image || '',
+    category: p.category || 'digital',
+    uid: target
+  });
+  closeModal();
+}
+
 function quickBuyProduct(pid) {
   openProductDetail(pid);
 }
 
-function instantBuyProductWithWallet(pid, price) {
+function instantBuyProductWithWallet(pid, coinsArg) {
+  const p = findProduct(pid);
+  const coins = Number(coinsArg || (p && (p.coins || p.price)) || 0);
+  if (!coins) { toast('Invalid product price', 'err'); return; }
+  if (!getUser()) {
+    toast('Please sign in to buy with your wallet', 'err');
+    closeModal();
+    openAuthModal('login');
+    return;
+  }
+  if (p && (p.inStock === false || p.stock === false)) {
+    toast('This item is currently out of stock', 'err');
+    return;
+  }
   const userCoins = getWalletCoins();
-  if (userCoins < price) {
-    toast(`Insufficient balance (${userCoins} Coins). Required: ${price}`, 'err');
+  if (userCoins < coins) {
+    toast(`Insufficient balance (${fmtNum(userCoins)} Coins). Required: ${fmtNum(coins)}`, 'err');
     closeModal();
     openWalletSheet('deposit');
     return;
   }
+  const target = ($('#pdDeliveryTarget')?.value || '').trim();
 
-  modifyWalletCoins(-price, `Purchased Product #${pid}`, success => {
-    if (success) {
-      closeModal();
-      confetti({ particleCount: 90, spread: 80 });
-      openOrderSuccessModal('Order Completed!', `Your digital product has been purchased with wallet coins. Voucher code or credentials are now available in your Orders ledger.`);
-    }
+  modifyWalletCoins(-coins, `Purchased ${p ? p.name : '#' + pid}`, success => {
+    if (!success) return;
+    const order = {
+      orderId: 'ORD-' + Date.now().toString(36).toUpperCase(),
+      productId: pid,
+      productName: p ? p.name : 'Digital Product',
+      title: p ? p.name : 'Digital Product',
+      price: coins,
+      coins: coins,
+      deliveryType: (p && p.deliveryType) || 'Voucher Code',
+      deliveryTarget: target,
+      playerUid: target,
+      category: (p && p.category) || 'digital',
+      paymentMethod: 'Prepaid Wallet',
+      status: 'PENDING',
+      ts: Date.now()
+    };
+    createOrderRecord(order);
+    closeModal();
+    confetti({ particleCount: 90, spread: 80 });
+    openOrderSuccessModal('Order Placed Successfully!', `Your payment of ${fmtNum(coins)} Coins went through. Our team delivers the voucher/credentials shortly — track it any time from My Orders.`);
   });
 }
 
@@ -4187,7 +4397,7 @@ function openAuthModal(mode = 'login') {
           <label>Email Address or Phone Number</label>
           <div class="auth-input-wrap">
             <i class="fa-solid fa-envelope auth-prefix-icon"></i>
-            <input id="authLoginId" type="text" placeholder="name@example.com or 018XXXXXXXX" value="siamx4200@gmail.com">
+            <input id="authLoginId" type="text" placeholder="name@example.com or 018XXXXXXXX" autocomplete="username">
           </div>
         </div>
 
@@ -4195,7 +4405,7 @@ function openAuthModal(mode = 'login') {
           <label>Password</label>
           <div class="auth-input-wrap">
             <i class="fa-solid fa-key auth-prefix-icon"></i>
-            <input id="authLoginPass" type="password" placeholder="Enter account password" value="password123">
+            <input id="authLoginPass" type="password" placeholder="Enter account password" autocomplete="current-password">
             <button class="auth-eye-btn" type="button" onclick="togglePassVisibility('authLoginPass')"><i class="fa-regular fa-eye"></i></button>
           </div>
         </div>
@@ -4279,65 +4489,129 @@ function togglePassVisibility(id) {
   if (el) el.type = el.type === 'password' ? 'text' : 'password';
 }
 
+function hashPassword(pass, salt) {
+  // Lightweight client-side digest so raw passwords are never stored in RTDB.
+  // NOTE: Firebase Auth (used when email signup succeeds) remains the primary,
+  // server-verified credential store; this is only for phone/RTDB accounts.
+  const input = String(salt || '') + '::' + String(pass == null ? '' : pass);
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  for (let i = 0; i < input.length; i++) {
+    const c = input.charCodeAt(i);
+    h1 = ((h1 ^ c) * 16777619) >>> 0;
+    h2 = ((h2 + c * (i + 7)) * 2654435761) >>> 0;
+  }
+  return ('p' + h1.toString(36) + h2.toString(36) + input.length.toString(36)).slice(0, 28);
+}
+
+function normalizeIdentifier(idVal) {
+  const v = String(idVal || '').trim();
+  return v.includes('@') ? v.toLowerCase() : v.replace(/[^0-9]/g, '');
+}
+
+function findCustomerByIdentifier(idVal, password, onFound, onMissing) {
+  if (!fbOK || !DB) { onFound(null); return; }
+  const ident = normalizeIdentifier(idVal);
+  if (!ident) { onFound(null); return; }
+
+  DB.ref('customers').once('value', snap => {
+    const all = snap.val() || {};
+    const match = Object.entries(all).find(([, c]) => {
+      if (!c) return false;
+      const email = String(c.email || '').toLowerCase();
+      const phone = String(c.phone || '').replace(/[^0-9]/g, '');
+      return (email && email === ident) || (phone && phone === ident);
+    });
+
+    if (match) {
+      onFound({ id: match[0], ...match[1] });
+      return;
+    }
+
+    // Legacy accounts created by the old id-hash scheme
+    let legacyId = null;
+    try { legacyId = 'cust_' + btoa(idVal).replace(/=/g, '').slice(0, 12); } catch (e) { legacyId = null; }
+    if (legacyId && all[legacyId]) {
+      onFound({ ...all[legacyId], id: legacyId });
+      return;
+    }
+    onMissing();
+  }, () => onMissing());
+}
+
 function executeAuthSignIn() {
   const idVal = $('#authLoginId').value.trim();
-  const pass = $('#authLoginPass').value.trim();
+  const pass = $('#authLoginPass').value;
 
   if (!idVal || !pass) {
     toast('Please fill in both email/phone and password', 'err');
     return;
   }
 
-  // Attempt Firebase Auth if email format
-  if (fbOK && auth && idVal.includes('@')) {
-    auth.signInWithEmailAndPassword(idVal, pass).then(userCredential => {
-      const u = userCredential.user;
-      const userProfile = {
-        id: u.uid,
-        email: u.email,
-        name: u.displayName || u.email.split('@')[0],
-        phone: u.phoneNumber || ''
-      };
-      finishAuthSuccess(userProfile);
-    }).catch(err => {
-      // Fallback to RTDB customer lookup
-      signInWithRTDB(idVal);
-    });
-  } else {
-    signInWithRTDB(idVal);
-  }
-}
-
-function signInWithRTDB(idVal) {
-  const customerId = 'cust_' + btoa(idVal).replace(/=/g, '').slice(0, 12);
-  const userProfile = {
-    id: customerId,
-    name: idVal.includes('@') ? idVal.split('@')[0] : 'Customer (' + idVal.slice(-4) + ')',
-    phone: idVal.includes('@') ? '' : idVal,
-    email: idVal.includes('@') ? idVal : '',
-    walletCoins: 100 // Welcome demo credit
+  const proceed = profile => {
+    if (!profile) {
+      toast('No account found for this email/phone. Please create an account.', 'err');
+      return;
+    }
+    if (profile.status === 'SUSPENDED') {
+      toast('This account has been suspended. Contact support.', 'err');
+      return;
+    }
+    // Verify the stored password hash for RTDB accounts.
+    if (profile.passwordHash) {
+      if (hashPassword(pass, profile.id) !== profile.passwordHash) {
+        toast('Incorrect password. Please try again.', 'err');
+        return;
+      }
+    } else if (profile.password) {
+      // Legacy plaintext record: verify then transparently upgrade to a hash.
+      if (String(profile.password) !== pass) {
+        toast('Incorrect password. Please try again.', 'err');
+        return;
+      }
+      if (fbOK && DB) {
+        DB.ref('customers/' + profile.id).update({
+          passwordHash: hashPassword(pass, profile.id),
+          password: null
+        }).catch(() => {});
+      }
+    }
+    delete profile.password;
+    delete profile.passwordHash;
+    finishAuthSuccess(profile);
   };
 
-  if (fbOK) {
-    DB.ref('customers/' + customerId).once('value', snap => {
-      if (snap.exists()) {
-        finishAuthSuccess({ ...snap.val(), id: customerId });
-      } else {
-        DB.ref('customers/' + customerId).set(userProfile);
-        finishAuthSuccess(userProfile);
-      }
+  // Email accounts: prefer real Firebase Auth, fall back to RTDB record.
+  if (fbOK && auth && idVal.includes('@')) {
+    auth.signInWithEmailAndPassword(idVal, pass).then(cred => {
+      const u = cred.user;
+      const profile = {
+        id: u.uid,
+        email: u.email,
+        name: u.displayName || String(u.email || '').split('@')[0],
+        phone: u.phoneNumber || ''
+      };
+      DB.ref('customers/' + u.uid).once('value', snap => {
+        proceed(snap.exists() ? { ...snap.val(), id: u.uid, ...profile } : profile);
+      }, () => proceed(profile));
+    }).catch(() => {
+      findCustomerByIdentifier(idVal, pass, proceed, () => {
+        toast('Account not found or wrong password. Please check and retry.', 'err');
+      });
     });
-  } else {
-    finishAuthSuccess(userProfile);
+    return;
   }
+
+  findCustomerByIdentifier(idVal, pass, proceed, () => {
+    toast('No account found for this email/phone. Please create an account.', 'err');
+  });
 }
 
 function executeAuthRegister() {
   const name = $('#authRegName').value.trim();
   const phone = $('#authRegPhone').value.trim();
-  const email = $('#authRegEmail').value.trim();
+  const email = $('#authRegEmail').value.trim().toLowerCase();
   const pass = $('#authRegPass').value.trim();
-  const refCode = $('#authRegRef').value.trim();
+  const refCode = $('#authRegRef').value.trim().toUpperCase();
 
   if (!name || name.length < 2) {
     toast('Please enter your full name', 'err');
@@ -4347,54 +4621,121 @@ function executeAuthRegister() {
     toast('Please provide a phone number or email', 'err');
     return;
   }
+  if (phone && !/^(\+?88)?01[3-9]\d{8}$/.test(phone.replace(/\s/g, ''))) {
+    toast('Please enter a valid Bangladeshi mobile number (e.g. 01712345678)', 'err');
+    return;
+  }
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    toast('Please enter a valid email address', 'err');
+    return;
+  }
   if (!pass || pass.length < 6) {
     toast('Password must be at least 6 characters', 'err');
     return;
   }
 
-  const welcomeCoins = refCode ? 50 : 25; // Bonus coins on signup
-  const customerId = 'cust_' + Date.now();
-  const userProfile = {
-    id: customerId,
-    name: name,
-    phone: phone,
-    email: email,
-    walletCoins: welcomeCoins,
-    createdAt: Date.now()
+  const btnBusy = () => toast('Creating your account...', 'info', 1500);
+  btnBusy();
+
+  const existingCheckDone = existing => {
+    if (existing) {
+      toast('An account with this email or phone already exists. Please sign in.', 'err');
+      switchAuthTab('login');
+      if ($('#authLoginId')) $('#authLoginId').value = email || phone;
+      return;
+    }
+
+    const welcomeCoins = refCode ? 50 : 25; // Bonus coins on signup
+    const customerId = 'cust_' + Date.now().toString(36) + Math.floor(Math.random() * 900 + 100);
+    const profile = {
+      id: customerId,
+      name: name,
+      phone: phone.replace(/[^0-9]/g, ''),
+      email: email,
+      walletCoins: welcomeCoins,
+      vipTier: 'GOLD',
+      status: 'ACTIVE',
+      referredBy: refCode || '',
+      createdAt: Date.now()
+    };
+
+    const persist = finalProfile => {
+      const toSave = { ...finalProfile, passwordHash: hashPassword(pass, finalProfile.id) };
+      if (fbOK && DB) {
+        DB.ref('customers/' + finalProfile.id).set(toSave)
+          .then(() => {
+            DB.ref('transactions').push({
+              userId: finalProfile.id,
+              amount: welcomeCoins,
+              reason: refCode ? 'Signup bonus + referral bonus' : 'Welcome signup bonus',
+              ts: Date.now()
+            }).catch(() => {});
+            finishAuthSuccess(finalProfile);
+          })
+          .catch(err => {
+            console.error('Customer save failed:', err);
+            toast('Could not save your account. Check your connection and retry.', 'err');
+          });
+      } else {
+        finishAuthSuccess(finalProfile);
+      }
+    };
+
+    // Create a real Firebase Auth user when an email + password were supplied.
+    if (fbOK && auth && email && pass) {
+      auth.createUserWithEmailAndPassword(email, pass).then(cred => {
+        profile.id = cred.user.uid;
+        persist(profile);
+      }).catch(err => {
+        const code = (err && err.code) || '';
+        if (code === 'auth/email-already-in-use') {
+          toast('This email is already registered. Please sign in instead.', 'err');
+          switchAuthTab('login');
+          return;
+        }
+        // Auth disabled/unavailable → still create the RTDB customer account.
+        console.warn('Firebase Auth signup unavailable:', code || err.message);
+        persist(profile);
+      });
+      return;
+    }
+
+    persist(profile);
   };
 
-  if (fbOK) {
-    if (auth && email && pass) {
-      auth.createUserWithEmailAndPassword(email, pass).then(cred => {
-        userProfile.id = cred.user.uid;
-        DB.ref('customers/' + userProfile.id).set(userProfile);
-        finishAuthSuccess(userProfile);
-      }).catch(err => {
-        DB.ref('customers/' + customerId).set(userProfile);
-        finishAuthSuccess(userProfile);
+  // Duplicate guard: never silently overwrite an existing customer record.
+  if (fbOK && DB && (email || phone)) {
+    DB.ref('customers').once('value', snap => {
+      const all = snap.val() || {};
+      const ident = normalizeIdentifier(email || phone);
+      const dup = Object.values(all).find(c => {
+        if (!c) return false;
+        const cEmail = String(c.email || '').toLowerCase();
+        const cPhone = String(c.phone || '').replace(/[^0-9]/g, '');
+        return (cEmail && cEmail === ident) || (cPhone && cPhone === ident);
       });
-    } else {
-      DB.ref('customers/' + customerId).set(userProfile);
-      finishAuthSuccess(userProfile);
-    }
+      existingCheckDone(dup || null);
+    }, () => existingCheckDone(null));
   } else {
-    finishAuthSuccess(userProfile);
+    existingCheckDone(null);
   }
 }
 
 function executeFastGuestLogin() {
-  const guestId = 'usr_' + Math.floor(100000 + Math.random() * 900000);
   const guestUser = {
-    id: guestId,
-    name: 'Siam VIP',
-    phone: '01888123456',
-    email: 'siamx4200@gmail.com',
-    walletCoins: 250,
-    vipTier: 'GOLD'
+    id: 'guest_' + Date.now().toString(36) + Math.floor(Math.random() * 900 + 100),
+    name: 'Guest Customer',
+    phone: '',
+    email: '',
+    walletCoins: 0,
+    vipTier: 'GUEST',
+    status: 'ACTIVE',
+    guest: true,
+    createdAt: Date.now()
   };
 
-  if (fbOK) {
-    DB.ref('customers/' + guestId).set(guestUser);
+  if (fbOK && DB) {
+    DB.ref('customers/' + guestUser.id).set(guestUser).catch(() => {});
   }
   finishAuthSuccess(guestUser);
 }
@@ -4411,11 +4752,17 @@ function finishAuthSuccess(u) {
 
 function handleSignOut() {
   if (fbOK && auth) auth.signOut().catch(() => {});
+  try {
+    if (fbOK && DB && State.user && State.user.id) {
+      DB.ref('customers/' + State.user.id).off();
+    }
+  } catch (e) { /* listener already detached */ }
   LS.set('nx_user', null);
   State.user = null;
   closeModal();
   toast('Signed out successfully', 'info');
   updateUserHeaderBadge();
+  updateWalletDisplay();
   renderApp();
 }
 
@@ -5143,10 +5490,13 @@ function loadWalletLedger() {
   }
 
   if (fbOK) {
-    DB.ref('addFunds').orderByChild('userId').equalTo(u.id).limitToLast(20).once('value', snap => {
+    DB.ref('addFunds').once('value', snap => {
       let items = [];
       if (snap.exists()) {
-        items = Object.values(snap.val()).reverse();
+        items = Object.values(snap.val())
+          .filter(i => i && i.userId === u.id)
+          .sort((a, b) => Number(b.ts || 0) - Number(a.ts || 0))
+          .slice(0, 20);
       }
       if (!items.length) {
         listEl.innerHTML = `
@@ -5196,8 +5546,14 @@ function loadWalletLedger() {
 }
 
 function renderWalletCashoutHTML() {
+  const coins = getWalletCoins();
   return `
     <div style="padding:10px 0;">
+      <div style="background:rgba(255,215,0,0.08); border:1px solid rgba(255,215,0,0.25); border-radius:14px; padding:12px 14px; margin-bottom:14px; font-size:12px; color:var(--muted); line-height:1.5;">
+        <i class="fa-solid fa-circle-info" style="color:var(--gold); margin-right:6px;"></i>
+        Cash out converts your Coins back to BDT (1 Coin = ${fmt(1)}). Requests are reviewed by our desk and paid out within 1–24 hours. Available balance:
+        <b style="color:#fff;">🪙 ${fmtNum(coins)}</b>
+      </div>
       <div class="field-group">
         <label>Cash Out Method</label>
         <select id="coMethod" style="width:100%; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:12px; padding:12px; font-weight:700;">
@@ -5212,22 +5568,94 @@ function renderWalletCashoutHTML() {
       </div>
       <div class="field-group">
         <label>Coins to Withdraw</label>
-        <input id="coAmount" type="number" value="500" min="100" style="width:100%; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:12px; padding:12px; font-weight:800; color:#fff;">
+        <input id="coAmount" type="number" value="500" min="100" max="${Math.max(100, coins)}" style="width:100%; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:12px; padding:12px; font-weight:800; color:#fff;">
       </div>
-      <button class="btn btn-dollar btn-block btn-lg" onclick="toast('Cashout request submitted to admin', 'ok'); closeModal();">
+      <button class="btn btn-dollar btn-block btn-lg" onclick="submitWalletCashout()">
         <i class="fa-solid fa-money-bill-transfer"></i> Request Instant Cashout
       </button>
     </div>
   `;
 }
 
+function submitWalletCashout() {
+  const u = getUser();
+  if (!u || !u.id) {
+    toast('Please sign in to request a cashout', 'err');
+    openAuthModal('login');
+    return;
+  }
+  const method = ($('#coMethod')?.value || 'bkash').toLowerCase();
+  const number = ($('#coNumber')?.value || '').trim();
+  const amount = Number($('#coAmount')?.value || 0);
+
+  if (!/^(\+?88)?01[3-9]\d{8}$/.test(number.replace(/\s/g, ''))) {
+    toast('Please enter a valid receiving mobile number', 'err');
+    return;
+  }
+  if (!amount || amount < 100) {
+    toast('Minimum cashout is 100 Coins', 'err');
+    return;
+  }
+  if (amount > getWalletCoins()) {
+    toast(`Insufficient balance. You have ${fmtNum(getWalletCoins())} Coins.`, 'err');
+    return;
+  }
+
+  // Deduct immediately (atomic) so the balance cannot be double-spent.
+  modifyWalletCoins(-amount, `Cashout request via ${method.toUpperCase()} to ${number}`, success => {
+    if (!success) return;
+    const req = {
+      userId: u.id,
+      userName: u.name || 'Customer',
+      userPhone: u.phone || number,
+      method: method.toUpperCase(),
+      type: 'CASHOUT_REQUEST',
+      mode: 'CASHOUT',
+      amount,
+      coins: amount,
+      payoutNumber: number,
+      status: 'PENDING',
+      ts: Date.now()
+    };
+    if (fbOK && DB) {
+      DB.ref('addFunds').push(req).catch(() => {});
+      DB.ref('cashouts').push(req).catch(() => {});
+    } else {
+      const local = LS.get('nx_cashouts', []);
+      local.unshift(req);
+      LS.set('nx_cashouts', local.slice(0, 50));
+    }
+    closeModal();
+    openOrderSuccessModal('Cashout Request Submitted!', `We reserved ${fmtNum(amount)} Coins for payout to ${number} via ${method.toUpperCase()}. Funds arrive within 1–24 hours after verification.`);
+  });
+}
+
 function copyToClipboard(text, msg = 'Copied to clipboard!') {
-  navigator.clipboard.writeText(text).then(() => toast(msg, 'ok')).catch(() => toast('Copied: ' + text, 'info'));
+  const value = String(text == null ? '' : text);
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+    navigator.clipboard.writeText(value).then(() => toast(msg, 'ok')).catch(() => {
+      if (fallbackCopyText(value)) toast(msg, 'ok');
+      else toast('Copy failed — ' + value, 'err', 6000);
+    });
+    return;
+  }
+  if (fallbackCopyText(value)) toast(msg, 'ok');
+  else toast('Copy failed — ' + value, 'err', 6000);
 }
 
 /* ==================== MANUAL PAYMENT MODAL ==================== */
 function openManualPaymentModal(info) {
   const pNums = State.settings.paymentNumbers || DEFAULT_SETTINGS.paymentNumbers;
+  const methodKey = String(info.paymentMethod || 'bkash').toLowerCase();
+  const methodNumber =
+    methodKey === 'nagad' ? (pNums.nagad || '01999123456') :
+    methodKey === 'rocket' ? (pNums.rocket || '017771234567') :
+    methodKey === 'binance' ? (pNums.binancePayId || '75421939') :
+    (pNums.bkashPersonal || '01888123456');
+
+  // Persist the order context so the confirmation step never loses details.
+  pendingExchangeOrder = { ...info };
+
   openModal(`
     <div class="sheet-head">
       <h3>${esc(info.title)}</h3>
@@ -5241,7 +5669,10 @@ function openManualPaymentModal(info) {
 
       <div class="field-group">
         <label>Selected Payment Gateway</label>
-        <p style="font-size:14px; font-weight:700; color:#fff;">${info.paymentMethod.toUpperCase()} — Number: ${esc(pNums.bkashPersonal)}</p>
+        <p style="font-size:14px; font-weight:700; color:#fff; margin-bottom:8px;">${esc(String(info.paymentMethod || '').toUpperCase())} — Number: <span style="font-family:var(--mono);">${esc(methodNumber)}</span></p>
+        <button type="button" class="btn btn-glass btn-sm" onclick="copyCleanNumberOnly('${esc(methodNumber)}', this)">
+          <i class="fa-regular fa-copy"></i> Copy Number Only
+        </button>
       </div>
 
       <div class="field-group">
@@ -5254,7 +5685,7 @@ function openManualPaymentModal(info) {
         <input id="mpTrxId" placeholder="e.g. B982KD71" style="width:100%; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:12px; padding:12px; text-transform:uppercase; font-weight:700; color:var(--accent);">
       </div>
 
-      <button class="btn btn-primary btn-block btn-lg" onclick="confirmManualPayment('${esc(info.type)}', ${info.amountBDT}, ${info.usdAmount || 0})">
+      <button class="btn btn-primary btn-block btn-lg" onclick="confirmManualPayment()">
         <i class="fa-solid fa-check-circle"></i>Confirm &amp; Place Order
       </button>
     </div>
@@ -5262,25 +5693,48 @@ function openManualPaymentModal(info) {
 }
 
 function confirmManualPayment(type, amountBDT, usdAmount) {
-  const sender = $('#mpSenderPhone').value.trim();
-  const trx = $('#mpTrxId').value.trim();
-  if (!sender || !trx) {
-    toast('Please enter sender number and Transaction ID', 'err');
+  const senderEl = $('#mpSenderPhone');
+  const trxEl = $('#mpTrxId');
+  if (!senderEl || !trxEl) {
+    toast('Payment form expired — please reopen the exchange terminal', 'err');
+    return;
+  }
+  const sender = senderEl.value.trim();
+  const trx = trxEl.value.trim();
+  if (!sender || sender.length < 8) {
+    toast('Please enter a valid sender number', 'err');
+    return;
+  }
+  if (!trx || trx.length < 4) {
+    toast('Please enter the Transaction ID (TrxID)', 'err');
     return;
   }
 
+  const ctx = pendingExchangeOrder || {};
+  const orderType = type || ctx.type || 'BUY';
+  const amount = Number(amountBDT || ctx.amountBDT || 0);
+  const usd = Number(usdAmount || ctx.usdAmount || 0);
+
   saveExchangeRecord({
-    type: type,
-    totalBDT: amountBDT,
-    usdAmount: usdAmount,
+    type: orderType,
+    currency: ctx.currency || 'USDT',
+    currencyId: ctx.currencyId || '',
+    usdAmount: usd,
+    rate: Number(ctx.rate) || 0,
+    fee: Number(ctx.fee) || 0,
+    totalBDT: amount,
+    amountBDT: amount,
+    payoutTarget: ctx.payoutTarget || '',
+    paymentMethod: String(ctx.paymentMethod || 'bkash').toUpperCase(),
     senderPhone: sender,
     trxId: trx,
     status: 'PENDING'
   });
 
+  pendingExchangeOrder = null;
   closeModal();
   confetti({ particleCount: 70, spread: 60 });
-  openOrderSuccessModal('Request Submitted Successfully!', `Your ${type} request has been submitted with TrxID: ${trx}. Admin will verify and settle within 5-15 minutes.`);
+  openOrderSuccessModal('Request Submitted Successfully!', `Your ${orderType} request of ${fmt(amount)} has been submitted with TrxID: ${trx}. Our desk verifies and settles within 5–15 minutes.`);
 }
 
 function openOrderSuccessModal(title, msg) {
@@ -5299,36 +5753,58 @@ function openOrderSuccessModal(title, msg) {
 }
 
 /* ==================== DAILY REWARD CLAIM ==================== */
-function claimDailyReward() {
-  const lastClaim = LS.get('nx_last_reward', 0);
-  const now = Date.now();
-  const hoursSince = (now - lastClaim) / (1000 * 60 * 60);
+let dailyRewardBusy = false;
 
-  if (hoursSince < 24) {
-    const hoursLeft = Math.ceil(24 - hoursSince);
-    toast(`Daily reward already claimed! Next reward in ${hoursLeft} hours.`, 'info');
+function claimDailyReward() {
+  const u = getUser();
+  if (dailyRewardBusy) return;
+  if (!u || !u.id) {
+    toast('Please sign in to claim your daily bonus', 'err');
+    openAuthModal('login');
     return;
   }
 
-  const bonusCoins = Math.floor(Math.random() * 25) + 10; // 10 to 35 free coins
-  LS.set('nx_last_reward', now);
-
-  modifyWalletCoins(bonusCoins, 'Daily Free Coin Reward', () => {
-    confetti({ particleCount: 100, spread: 80 });
-    openModal(`
-      <div class="sheet-body" style="text-align:center; padding:34px 20px;">
-        <div style="font-size:52px; margin-bottom:12px;">🎉</div>
-        <h2 style="font-size:22px; font-weight:900; color:#fff; margin-bottom:8px;">Congratulations!</h2>
-        <p style="color:var(--muted); font-size:13.5px; margin-bottom:18px;">
-          You claimed your Daily Loyalty Reward:
-        </p>
-        <div style="font-size:32px; font-weight:900; color:var(--gold); font-family:var(--mono); margin-bottom:24px;">
-          +${bonusCoins} FREE COINS
+  const applyReward = lastClaim => {
+    const hoursSince = (Date.now() - Number(lastClaim || 0)) / 3600000;
+    if (hoursSince < 24) {
+      const hoursLeft = Math.ceil(24 - hoursSince);
+      toast(`Daily reward already claimed! Next reward in ${hoursLeft} hour(s).`, 'info');
+      return;
+    }
+    const bonusCoins = Math.floor(Math.random() * 25) + 10; // 10 to 35 free coins
+    dailyRewardBusy = true;
+    modifyWalletCoins(bonusCoins, 'Daily Free Coin Reward', success => {
+      dailyRewardBusy = false;
+      if (!success) return;
+      // Persist the claim server-side so clearing localStorage cannot re-trigger it.
+      if (fbOK && DB) {
+        DB.ref('customers/' + u.id + '/lastDailyReward').set(Date.now()).catch(() => {});
+      }
+      LS.set('nx_last_reward', Date.now());
+      confetti({ particleCount: 100, spread: 80 });
+      openModal(`
+        <div class="sheet-body" style="text-align:center; padding:34px 20px;">
+          <div style="font-size:52px; margin-bottom:12px;">🎉</div>
+          <h2 style="font-size:22px; font-weight:900; color:#fff; margin-bottom:8px;">Congratulations!</h2>
+          <p style="color:var(--muted); font-size:13.5px; margin-bottom:18px;">You claimed your Daily Loyalty Reward:</p>
+          <div style="font-size:32px; font-weight:900; color:var(--gold); font-family:var(--mono); margin-bottom:24px;">
+            +${bonusCoins} FREE COINS
+          </div>
+          <button class="btn btn-wallet btn-lg" onclick="closeModal()">Awesome!</button>
         </div>
-        <button class="btn btn-wallet btn-lg" onclick="closeModal()">Awesome!</button>
-      </div>
-    `);
-  });
+      `);
+    });
+  };
+
+  if (fbOK && DB) {
+    DB.ref('customers/' + u.id + '/lastDailyReward').once('value', snap => {
+      const server = Number(snap.val() || 0);
+      const local = Number(LS.get('nx_last_reward', 0) || 0);
+      applyReward(Math.max(server, local));
+    }, () => applyReward(LS.get('nx_last_reward', 0)));
+  } else {
+    applyReward(LS.get('nx_last_reward', 0));
+  }
 }
 
 /* ==================== LIVE SOCIAL PROOF TICKER ==================== */
@@ -5351,10 +5827,270 @@ function triggerSocialProof() {
 }
 setInterval(triggerSocialProof, 16000);
 
+/* ==================== CUSTOMER ORDERS / VOUCHERS VIEW ==================== */
+function renderOrdersView(view) {
+  const u = getUser();
+  view.innerHTML = `
+    <div style="padding-top:24px; max-width:760px; margin:0 auto;">
+      <h1 style="font-size:24px; font-weight:800; margin-bottom:10px;">My Orders &amp; Vouchers</h1>
+      <p style="color:var(--muted); margin-bottom:20px;">Live delivery status for every wallet purchase, game top-up and exchange request.</p>
+      <div id="ordersListView">
+        <p style="color:var(--muted); font-size:13px; text-align:center; padding:24px 0;">
+          <i class="fa-solid fa-spinner fa-spin"></i> Loading your orders...
+        </p>
+      </div>
+    </div>
+  `;
+  loadUserOrders(list => {
+    const box = $('#ordersListView');
+    if (!box) return;
+    if (!u) {
+      box.innerHTML = `
+        <div style="background:rgba(14,20,42,0.7); border:1px solid var(--border); border-radius:18px; padding:24px; text-align:center;">
+          <i class="fa-solid fa-lock" style="font-size:38px; color:var(--muted-dark); margin-bottom:12px;"></i>
+          <h3 style="font-size:16px; font-weight:700; color:#fff;">Sign in to view your orders</h3>
+          <p style="color:var(--muted); font-size:13px; margin:6px 0 16px;">Your vouchers and top-up history are tied to your account.</p>
+          <button class="btn btn-primary" onclick="openAuthModal('login')"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
+        </div>`;
+      return;
+    }
+    if (!list.length) {
+      box.innerHTML = `
+        <div style="background:rgba(14,20,42,0.7); border:1px solid var(--border); border-radius:18px; padding:24px; text-align:center;">
+          <i class="fa-solid fa-receipt" style="font-size:42px; color:var(--muted-dark); margin-bottom:12px;"></i>
+          <h3 style="font-size:16px; font-weight:700; color:#fff;">No orders yet</h3>
+          <p style="color:var(--muted); font-size:13px; margin:6px 0 16px;">Your purchases, vouchers and delivery codes will appear here.</p>
+          <a class="btn btn-primary" href="#/"><i class="fa-solid fa-store"></i>Explore Marketplace</a>
+        </div>`;
+      return;
+    }
+    const statusColor = st => st === 'DELIVERED' ? 'var(--accent)' : st === 'REFUNDED' ? '#ff9800' : st === 'REJECTED' ? 'var(--danger)' : 'var(--gold)';
+    box.innerHTML = list.map(o => {
+      const status = String(o.status || 'PENDING').toUpperCase();
+      const delivered = status === 'DELIVERED';
+      return `
+        <div style="background:rgba(14,20,42,0.7); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+            <div>
+              <div style="font-size:14.5px; font-weight:800; color:#fff;">${esc(o.productName || o.itemName || o.title || 'Marketplace Order')}</div>
+              <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">
+                ${esc(o.orderId || o.id || '—')} &bull; ${fmtDate(o.ts || o.createdAt)}
+                ${(o.playerUid || o.deliveryTarget) ? ` &bull; Target: <b style="color:#cbd5e1;">${esc(o.playerUid || o.deliveryTarget)}</b>` : ''}
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:14px; font-weight:800; color:var(--gold);">🪙 ${fmtNum(o.coins || o.price || 0)}</div>
+              <span style="font-size:10px; font-weight:800; padding:3px 8px; border-radius:6px; background:rgba(255,255,255,0.06); color:${statusColor(status)};">${esc(status)}</span>
+            </div>
+          </div>
+          ${delivered && o.deliveryData ? `
+            <div style="margin-top:10px; background:rgba(0,245,160,0.08); border:1px solid rgba(0,245,160,0.3); border-radius:10px; padding:10px 12px;">
+              <div style="font-size:10.5px; text-transform:uppercase; color:var(--accent); font-weight:800; margin-bottom:4px;">Your Delivery Code</div>
+              <div style="font-family:var(--mono); font-size:13px; color:#fff; word-break:break-all;">${esc(o.deliveryData)}</div>
+              <button class="btn btn-glass btn-sm" style="margin-top:8px;" onclick="copyToClipboard('${esc(o.deliveryData).replace(/'/g, "\\'")}', 'Delivery code copied!')">
+                <i class="fa-regular fa-copy"></i> Copy Code
+              </button>
+            </div>` : ''}
+          ${status === 'REFUNDED' && o.refundReason ? `
+            <div style="margin-top:10px; font-size:11.5px; color:#ff9800;">Refunded: ${esc(o.refundReason)}</div>` : ''}
+        </div>`;
+    }).join('');
+  });
+}
+
+/* ==================== SEARCH VIEW ==================== */
+function renderSearchView(view, query) {
+  const q = String(query || '').trim().toLowerCase();
+  const all = State.products && Object.keys(State.products).length
+    ? Object.entries(State.products).map(([id, p]) => ({ id, ...p }))
+    : getDefaultCatalog();
+  const matches = q
+    ? all.filter(p => (p.visible !== false) && (
+        String(p.name || '').toLowerCase().includes(q) ||
+        String(p.category || '').toLowerCase().includes(q) ||
+        String(p.desc || p.description || '').toLowerCase().includes(q)
+      ))
+    : [];
+  view.innerHTML = `
+    <div style="padding-top:24px;">
+      <h1 style="font-size:22px; font-weight:800; margin-bottom:6px;">Search Results</h1>
+      <p style="color:var(--muted); margin-bottom:18px; font-size:13px;">
+        ${q ? `${matches.length} result(s) for “${esc(query)}”` : 'Type a keyword in the header search box to find products.'}
+      </p>
+      ${matches.length ? `<div class="product-grid">${matches.map(p => {
+        const isWished = State.wishlist.includes(p.id);
+        return `
+          <article class="d-card" data-pid="${esc(p.id)}">
+            <div class="d-card-img" onclick="openProductDetail('${esc(p.id)}')">
+              <img src="${safeImg(p.image)}" alt="${esc(p.name)}" loading="lazy" onerror="this.src=PLH">
+              ${p.badge ? `<span class="d-badge">${esc(p.badge)}</span>` : ''}
+              <button class="d-wish ${isWished ? 'on' : ''}" onclick="event.stopPropagation(); toggleWishlist('${esc(p.id)}')" aria-label="Wishlist">
+                <i class="fa-${isWished ? 'solid' : 'regular'} fa-heart"></i>
+              </button>
+            </div>
+            <div class="d-card-body">
+              <span class="d-cat">${esc(p.category || 'Digital')}</span>
+              <div class="d-title" onclick="openProductDetail('${esc(p.id)}')">${esc(p.name)}</div>
+              <div class="d-price-row"><span class="d-price">${fmt(p.price || 99)}</span></div>
+              <div class="d-btn-row">
+                <button class="btn btn-primary btn-block btn-sm" onclick="quickBuyProduct('${esc(p.id)}')">
+                  <i class="fa-solid fa-bag-shopping"></i>Buy Now
+                </button>
+              </div>
+            </div>
+          </article>`;
+      }).join('')}</div>` : `
+        <div style="text-align:center; padding:40px 16px; color:var(--muted);">
+          <i class="fa-solid fa-magnifying-glass" style="font-size:36px; color:var(--muted-dark); margin-bottom:12px;"></i>
+          <p style="font-size:13.5px;">No products matched your search. Try “Free Fire”, “PUBG”, “Canva” or “USDT”.</p>
+          <a class="btn btn-primary btn-sm" style="margin-top:12px;" href="#/">Browse Catalog</a>
+        </div>`}
+    </div>
+  `;
+}
+
+/* ==================== WISHLIST VIEW ==================== */
+function renderWishlistView(view) {
+  const items = State.wishlist.map(id => findProduct(id)).filter(Boolean);
+  view.innerHTML = `
+    <div style="padding-top:24px;">
+      <h1 style="font-size:22px; font-weight:800; margin-bottom:16px;">My Wishlist</h1>
+      ${items.length ? `<div class="product-grid">${items.map(p => `
+        <article class="d-card">
+          <div class="d-card-img" onclick="openProductDetail('${esc(p.id)}')">
+            <img src="${safeImg(p.image)}" alt="${esc(p.name)}" loading="lazy" onerror="this.src=PLH">
+            <button class="d-wish on" onclick="event.stopPropagation(); toggleWishlist('${esc(p.id)}')" aria-label="Remove"><i class="fa-solid fa-heart"></i></button>
+          </div>
+          <div class="d-card-body">
+            <div class="d-title" onclick="openProductDetail('${esc(p.id)}')">${esc(p.name)}</div>
+            <div class="d-price-row"><span class="d-price">${fmt(p.price || 99)}</span></div>
+            <div class="d-btn-row">
+              <button class="btn btn-primary btn-block btn-sm" onclick="quickBuyProduct('${esc(p.id)}')">
+                <i class="fa-solid fa-bag-shopping"></i>Buy Now
+              </button>
+            </div>
+          </div>
+        </article>`).join('')}</div>` : `
+        <div style="text-align:center; padding:40px 16px; color:var(--muted);">
+          <i class="fa-regular fa-heart" style="font-size:36px; color:var(--muted-dark); margin-bottom:12px;"></i>
+          <p style="font-size:13.5px;">Your wishlist is empty. Tap the heart on any product to save it.</p>
+          <a class="btn btn-primary btn-sm" style="margin-top:12px;" href="#/">Browse Catalog</a>
+        </div>`}
+    </div>
+  `;
+}
+
+/* ==================== CART VIEW (wallet checkout) ==================== */
+function renderCartView(view) {
+  const cart = getCart();
+  const total = cart.reduce((sum, i) => sum + (Number(i.coins || i.price) || 0) * (Number(i.qty) || 1), 0);
+  view.innerHTML = `
+    <div style="padding-top:24px; max-width:720px; margin:0 auto;">
+      <h1 style="font-size:22px; font-weight:800; margin-bottom:16px;">Shopping Cart</h1>
+      ${cart.length ? `
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          ${cart.map((i, idx) => `
+            <div style="background:rgba(14,20,42,0.7); border:1px solid var(--border); border-radius:14px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+              <div>
+                <div style="font-size:13.5px; font-weight:800; color:#fff;">${esc(i.title)}</div>
+                <div style="font-size:11.5px; color:var(--muted);">Qty: ${Number(i.qty) || 1}${i.uid ? ` &bull; Target: ${esc(i.uid)}` : ''}</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <b style="color:var(--gold); font-size:13px;">🪙 ${fmtNum((Number(i.coins || i.price) || 0) * (Number(i.qty) || 1))}</b>
+                <button class="icon-btn" onclick="removeCartItem(${idx})" aria-label="Remove"><i class="fa-solid fa-trash" style="color:var(--danger);"></i></button>
+              </div>
+            </div>`).join('')}
+        </div>
+        <div style="margin-top:16px; background:rgba(0,242,254,0.07); border:1px solid rgba(0,242,254,0.25); border-radius:16px; padding:16px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span style="font-size:11px; text-transform:uppercase; color:var(--muted); font-weight:800;">Total Payable</span>
+            <div style="font-size:20px; font-weight:900; color:#fff; font-family:var(--mono);">🪙 ${fmtNum(total)}</div>
+          </div>
+          <button class="btn btn-wallet btn-lg" onclick="checkoutCart()"><i class="fa-solid fa-bolt"></i>Pay With Wallet</button>
+        </div>` : `
+        <div style="text-align:center; padding:40px 16px; color:var(--muted);">
+          <i class="fa-solid fa-bag-shopping" style="font-size:36px; color:var(--muted-dark); margin-bottom:12px;"></i>
+          <p style="font-size:13.5px;">Your cart is empty.</p>
+          <a class="btn btn-primary btn-sm" style="margin-top:12px;" href="#/">Browse Catalog</a>
+        </div>`}
+    </div>
+  `;
+}
+
+function removeCartItem(idx) {
+  const cart = getCart();
+  cart.splice(idx, 1);
+  saveCart(cart);
+  renderApp();
+}
+
+function checkoutCart() {
+  const cart = getCart();
+  if (!cart.length) return;
+  if (!getUser()) {
+    toast('Please sign in to check out with your wallet', 'err');
+    openAuthModal('login');
+    return;
+  }
+  const total = cart.reduce((sum, i) => sum + (Number(i.coins || i.price) || 0) * (Number(i.qty) || 1), 0);
+  if (getWalletCoins() < total) {
+    toast(`Insufficient balance. Need ${fmtNum(total)} Coins.`, 'err');
+    openWalletSheet('deposit');
+    return;
+  }
+  modifyWalletCoins(-total, `Cart checkout (${cart.length} item/s)`, success => {
+    if (!success) return;
+    cart.forEach(i => {
+      createOrderRecord({
+        orderId: 'ORD-' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random() * 900 + 100),
+        productId: i.pid,
+        productName: i.title,
+        title: i.title,
+        price: Number(i.coins || i.price) || 0,
+        coins: (Number(i.coins || i.price) || 0) * (Number(i.qty) || 1),
+        quantity: Number(i.qty) || 1,
+        deliveryTarget: i.uid || '',
+        playerUid: i.uid || '',
+        category: i.category || 'digital',
+        paymentMethod: 'Prepaid Wallet',
+        status: 'PENDING',
+        ts: Date.now()
+      });
+    });
+    saveCart([]);
+    confetti({ particleCount: 100, spread: 80 });
+    openOrderSuccessModal('Cart Order Placed!', `We received your order for ${cart.length} item(s) totalling ${fmtNum(total)} Coins. Your vouchers appear in My Orders once fulfilled.`);
+  });
+}
+
 /* ==================== ROUTER DISPATCHER ==================== */
+function renderTickerBar() {
+  const track = $('#tickerTrack');
+  if (!track) return;
+  const rates = State.dollarRates || DEFAULT_DOLLAR_RATES;
+  const announcement = State.settings && State.settings.announcement;
+  const annText = typeof announcement === 'string' ? announcement : (announcement && announcement.enabled !== false ? announcement.text : '');
+
+  const pills = Object.values(rates).map(r => `
+    <div class="tick-pill"><span>${esc(r.name || r.id)}:</span> Buy: <b class="green">${Number(r.buyRate || 0).toFixed(2)}৳</b> | Sell: <b class="gold">${Number(r.sellRate || 0).toFixed(2)}৳</b></div>
+  `).join('');
+  const totalReserve = Object.values(rates).reduce((sum, r) => sum + (Number(r.reserve) || 0), 0);
+  const annPill = annText ? `<div class="tick-pill"><i class="fa-solid fa-bullhorn" style="color:var(--primary)"></i><b>${esc(annText)}</b></div>` : '';
+
+  const strip = `
+    <div class="tick-pill"><i class="fa-solid fa-bolt green"></i><b>LIVE DOLLAR RATES:</b></div>
+    ${pills}
+    <div class="tick-pill"><i class="fa-solid fa-shield-halved green"></i><b>RESERVE: ${fmtUSD(totalReserve)}+</b></div>
+    ${annPill}
+  `;
+  // duplicated for the seamless infinite marquee
+  track.innerHTML = strip + strip;
+}
+
 function renderApp() {
   const route = parseRoute();
   const view = $('#appView');
+  renderTickerBar();
 
   // Update Bottom Nav
   $$('#mobileNav .mn-item').forEach(el => {
@@ -5388,19 +6124,14 @@ function renderApp() {
       </div>
     `;
   } else if (route.page === 'orders') {
-    view.innerHTML = `
-      <div style="padding-top:24px; max-width:700px; margin:0 auto;">
-        <h1 style="font-size:24px; font-weight:800; margin-bottom:10px;">My Orders &amp; Vouchers</h1>
-        <p style="color:var(--muted); margin-bottom:20px;">View your instant delivery voucher codes and top-up order status.</p>
-        <div style="background:rgba(14,20,42,0.7); border:1px solid var(--border); border-radius:18px; padding:24px; text-align:center;">
-          <i class="fa-solid fa-receipt" style="font-size:42px; color:var(--muted-dark); margin-bottom:12px;"></i>
-          <h3 style="font-size:16px; font-weight:700; color:#fff;">Orders are synced with your Wallet &amp; Phone</h3>
-          <p style="color:var(--muted); font-size:13px; margin:6px 0 16px;">Check your email or phone for instant SMS delivery codes.</p>
-          <a class="btn btn-primary" href="#/"><i class="fa-solid fa-store"></i>Explore Marketplace</a>
-        </div>
-      </div>
-    `;
-  } else if (route.page === 'account') {
+    renderOrdersView(view);
+  } else if (route.page === 'search') {
+    renderSearchView(view, decodeURIComponent(route.id || ''));
+  } else if (route.page === 'wishlist') {
+    renderWishlistView(view);
+  } else if (route.page === 'cart') {
+    renderCartView(view);
+  } else if (route.page === 'account') {  } else if (route.page === 'account') {
     const coins = getWalletCoins();
     view.innerHTML = `
       <div style="padding-top:24px; max-width:600px; margin:0 auto;">
@@ -5536,6 +6267,12 @@ function updateDisplayModeUI() {
   }
 }
 
+function submitMobileSearch() {
+  const q = ($('#mobSearchInput')?.value || '').trim();
+  closeModal();
+  location.hash = q ? '#/search/' + encodeURIComponent(q) : '#/';
+}
+
 /* ==================== BOOT & REAL-TIME LISTENERS ==================== */
 function boot() {
   // Initialize view mode state
@@ -5554,9 +6291,47 @@ function boot() {
   $('#openWalletBtn').onclick = () => openWalletSheet('deposit');
   $('#mnWalletBtn').onclick = () => openWalletSheet('deposit');
   $('#hdrUserBtn').onclick = () => openAuthModal();
-  $('#hdrCartBtn').onclick = () => {
-    toast('Cart items ready for instant wallet checkout!', 'info');
+  const cartBtn = $('#hdrCartBtn');
+  if (cartBtn) cartBtn.onclick = () => { location.hash = '#/cart'; };
+  const wishBtn = $('#hdrWishBtn');
+  if (wishBtn) wishBtn.onclick = () => { location.hash = '#/wishlist'; };
+  const mobileSearchBtn = $('#hdrSearchBtn');
+  if (mobileSearchBtn) mobileSearchBtn.onclick = () => {
+    openModal(`
+      <div class="sheet-head">
+        <h3><i class="fa-solid fa-magnifying-glass" style="color:var(--primary); margin-right:8px;"></i>Search Marketplace</h3>
+        <button class="icon-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="sheet-body">
+        <div class="field-group">
+          <input id="mobSearchInput" type="search" placeholder="Free Fire, PUBG, USDT, Canva..." style="width:100%; background:rgba(7,12,28,0.85); border:1px solid var(--border); border-radius:14px; padding:13px 16px; color:#fff; font-size:15px;">
+        </div>
+        <button class="btn btn-primary btn-block btn-lg" onclick="submitMobileSearch()">
+          <i class="fa-solid fa-magnifying-glass"></i> Search Products
+        </button>
+      </div>
+    `);
+    setTimeout(() => $('#mobSearchInput')?.focus(), 80);
   };
+
+  const searchInput = $('#mainSearchInput');
+  if (searchInput) {
+    let searchTimer = null;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const q = searchInput.value.trim();
+      searchTimer = setTimeout(() => {
+        if (!q) { location.hash = '#/'; return; }
+        location.hash = '#/search/' + encodeURIComponent(q);
+      }, 350);
+    });
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const q = searchInput.value.trim();
+        location.hash = q ? '#/search/' + encodeURIComponent(q) : '#/';
+      }
+    });
+  }
 
   if (!fbOK) {
     console.log('Running in local offline preview mode');
@@ -5590,6 +6365,16 @@ function boot() {
   const u = getUser();
   if (u && u.id) {
     listenUserWallet(u.id);
+    // Re-validate the account state so a suspended user cannot keep using the app.
+    DB.ref('customers/' + u.id + '/status').once('value', snap => {
+      if (String(snap.val() || '').toUpperCase() === 'SUSPENDED') {
+        toast('This account has been suspended. Contact support.', 'err', 6000);
+        LS.set('nx_user', null);
+        State.user = null;
+        updateUserHeaderBadge();
+        updateWalletDisplay();
+      }
+    }, () => {});
   }
 }
 
@@ -5628,6 +6413,13 @@ window.openWriteReviewModal = openWriteReviewModal;
 window.setReviewRating = setReviewRating;
 window.submitCustomerReview = submitCustomerReview;
 window.addToCart = addToCart;
+window.addProductToCart = addProductToCart;
+window.removeCartItem = removeCartItem;
+window.submitWalletCashout = submitWalletCashout;
+window.submitMobileSearch = submitMobileSearch;
+window.checkoutCart = checkoutCart;
+window.renderOrdersView = renderOrdersView;
+window.findProduct = findProduct;
 window.toggleWishlist = toggleWishlist;
 window.loadWalletLedger = loadWalletLedger;
 window.gatewayStepBack = gatewayStepBack;

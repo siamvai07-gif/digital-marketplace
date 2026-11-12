@@ -773,6 +773,7 @@ const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => '৳' + Number(n || 0).toLocaleString('en-IN');
 const fmtUSD = n => '$' + Number(n || 0).toFixed(2);
+const fmtNum = n => Number(n || 0).toLocaleString('en-IN');
 const fmtDate = ts => ts ? new Date(ts).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
 
 function admToast(msg, type = 'ok') {
@@ -877,27 +878,96 @@ const DEFAULT_HERO_VIDEO = {
 
 // Local Storage Session
 const ADMIN_SESS_KEY = 'nx_admin_session';
+const ADMIN_KEY_HASH = 'p1ww0kqsb4rt34h'; // sha-less digest of the authorised access key (key never stored)
+const ADMIN_SESS_TTL = 12 * 60 * 60 * 1000; // 12 hours
+const ADMIN_MAX_ATTEMPTS = 5;
+const ADMIN_LOCKOUT_MS = 5 * 60 * 1000;
+
+// Same one-way digest used by the customer app (no plaintext key in the bundle).
+function adminHashKey(key, salt) {
+  const input = String(salt || '') + '::' + String(key == null ? '' : key);
+  let h1 = 0x811c9dc5, h2 = 0x01000193;
+  for (let i = 0; i < input.length; i++) {
+    const c = input.charCodeAt(i);
+    h1 = ((h1 ^ c) * 16777619) >>> 0;
+    h2 = ((h2 + c * (i + 7)) * 2654435761) >>> 0;
+  }
+  return ('p' + h1.toString(36) + h2.toString(36) + input.length.toString(36)).slice(0, 28);
+}
+
+function isAdminSessionValid() {
+  try {
+    const raw = localStorage.getItem(ADMIN_SESS_KEY);
+    if (!raw) return false;
+    const tx = Number(localStorage.getItem(ADMIN_SESS_KEY + '_at') || 0);
+    if (raw !== 'AUTH_OK') return false;
+    if (!tx || (Date.now() - tx) > ADMIN_SESS_TTL) {
+      localStorage.removeItem(ADMIN_SESS_KEY);
+      localStorage.removeItem(ADMIN_SESS_KEY + '_at');
+      return false;
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function checkAuth() {
-  const sess = localStorage.getItem(ADMIN_SESS_KEY);
-  if (sess === 'SIAMVIP_OK') {
+  if (isAdminSessionValid()) {
     $('#loginOverlay').classList.add('gone');
   }
 }
 
+function getLockoutRemaining() {
+  const until = Number(localStorage.getItem('nx_admin_lock_until') || 0);
+  return Math.max(0, until - Date.now());
+}
+
 function verifyAdminKey() {
-  const key = $('#adminKeyInput').value.trim();
-  if (key === 'SIAMVIP') {
-    localStorage.setItem(ADMIN_SESS_KEY, 'SIAMVIP_OK');
+  const input = $('#adminKeyInput');
+  const errEl = $('#loginErrMsg');
+
+  const lockedFor = getLockoutRemaining();
+  if (lockedFor > 0) {
+    errEl.style.display = 'block';
+    errEl.textContent = `Too many attempts. Retry in ${Math.ceil(lockedFor / 60000)} minute(s).`;
+    return;
+  }
+
+  const key = input.value.trim();
+  if (!key) {
+    errEl.style.display = 'block';
+    errEl.textContent = 'Please enter the access key.';
+    return;
+  }
+
+  if (adminHashKey(key, 'nx_admin') === ADMIN_KEY_HASH) {
+    localStorage.setItem(ADMIN_SESS_KEY, 'AUTH_OK');
+    localStorage.setItem(ADMIN_SESS_KEY + '_at', String(Date.now()));
+    localStorage.removeItem('nx_admin_attempts');
+    localStorage.removeItem('nx_admin_lock_until');
+    input.value = '';
+    errEl.style.display = 'none';
     $('#loginOverlay').classList.add('gone');
     admToast('Admin authenticated successfully');
+    if (typeof setAdminTab === 'function') setAdminTab(AdminState.currentTab || 'dashboard');
   } else {
-    $('#loginErrMsg').style.display = 'block';
-    $('#loginErrMsg').textContent = 'Invalid access key. Please try again.';
+    const attempts = Number(localStorage.getItem('nx_admin_attempts') || 0) + 1;
+    localStorage.setItem('nx_admin_attempts', String(attempts));
+    errEl.style.display = 'block';
+    if (attempts >= ADMIN_MAX_ATTEMPTS) {
+      localStorage.setItem('nx_admin_lock_until', String(Date.now() + ADMIN_LOCKOUT_MS));
+      localStorage.setItem('nx_admin_attempts', '0');
+      errEl.textContent = 'Too many failed attempts. Locked for 5 minutes.';
+    } else {
+      errEl.textContent = `Invalid access key. ${ADMIN_MAX_ATTEMPTS - attempts} attempt(s) remaining.`;
+    }
   }
 }
 
 function adminLogout() {
   localStorage.removeItem(ADMIN_SESS_KEY);
+  localStorage.removeItem(ADMIN_SESS_KEY + '_at');
   location.reload();
 }
 
@@ -1070,7 +1140,7 @@ function renderExchangeRows(list) {
     <div class="item-row">
       <div class="item-info">
         <div class="item-title">
-          <span style="color:${item.type === 'BUY' ? 'var(--accent)' : 'var(--primary)'}; font-weight:800;">[${item.type}]</span>
+          <span style="color:${item.type === 'BUY' ? 'var(--accent)' : 'var(--primary)'}; font-weight:800;">[${esc(item.type || 'BUY')}]</span>
           ${fmtUSD(item.usdAmount)} ${esc(item.currency || 'USD')} ↔ ${fmt(item.totalBDT)}
         </div>
         <div class="item-sub">
@@ -1149,6 +1219,38 @@ function renderAddFundsRows(list) {
       : '<span style="background:rgba(255,215,0,0.15); color:var(--gold); font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; margin-left:6px;"><i class="fa-solid fa-hand-holding-dollar"></i> MANUAL SEND MONEY</span>';
 
     const sourceNode = item.sourceNode || 'deposits';
+    const isCashout = (item.type === 'CASHOUT_REQUEST' || item.mode === 'CASHOUT');
+
+    if (isCashout) {
+      return `
+        <div class="item-row">
+          <div class="item-info">
+            <div class="item-title" style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
+              <b style="color:var(--danger); font-size:15px;">-${Number(item.coins || item.amount || 0)} Coins</b>
+              <span style="color:var(--muted); font-size:12px;">(৳${Number(item.amount || 0)} payout)</span>
+              ${methodBadge}
+              <span style="background:rgba(255,51,102,0.15); color:var(--danger); font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px;">CASH OUT</span>
+            </div>
+            <div class="item-sub" style="margin-top:4px;">
+              <span>Customer: <b>${esc(item.userName || 'Customer')} (${esc(item.userPhone || '—')})</b></span>
+              <span>Send To: <b style="color:var(--accent); font-family:var(--mono);">${esc(item.payoutNumber || '—')}</b></span>
+              <span>Date: <b>${fmtDate(item.ts || item.createdAt)}</b></span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="status-tag ${(item.status || 'pending').toLowerCase()}">${esc(item.status || 'PENDING')}</span>
+            ${item.status === 'PENDING' ? `
+              <button class="btn btn-success btn-sm" onclick="completeCashout('${esc(item.id)}')">
+                <i class="fa-solid fa-check"></i> Mark Paid
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="refundCashout('${esc(item.id)}', '${esc(item.userId || '')}', ${Number(item.coins || item.amount || 0)})">
+                <i class="fa-solid fa-rotate-left"></i> Refund
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
 
     return `
       <div class="item-row">
@@ -1182,42 +1284,71 @@ function renderAddFundsRows(list) {
 }
 
 function approveAddFunds(id, userId, amount, sourceNode = 'deposits') {
-  if (!confirm(`Credit ${amount} Coins to customer?`)) return;
+  const coins = Number(amount) || 0;
+  if (!coins) { admToast('Invalid coin amount', 'err'); return; }
 
-  // Credit user's wallet atomically
+  const record = findAddFundsRecord(id);
+  if (record.type === 'CASHOUT_REQUEST' || record.mode === 'CASHOUT') {
+    admToast('Cashout requests must be paid, not credited — use Mark Paid / Refund', 'err');
+    return;
+  }
+  if (String(record.status || '').toUpperCase() === 'COMPLETED') {
+    admToast('This request is already completed', 'err');
+    return;
+  }
+  if (!confirm(`Credit ${coins} Coins to customer?`)) return;
+
+  const updates = { status: 'COMPLETED', approvedAt: Date.now(), approvedBy: 'admin' };
+
   if (userId) {
-    DB.ref('customers/' + userId + '/walletCoins').transaction(cur => (Number(cur || 0) + amount));
-    // Ledger transaction
-    DB.ref('transactions').push({
-      userId: userId,
-      amount: amount,
-      reason: 'Add Funds Approved by Admin',
-      ts: Date.now()
-    });
-  }
-
-  // Update target node
-  const updates = { status: 'COMPLETED', approvedAt: Date.now() };
-  DB.ref(sourceNode + '/' + id).update(updates);
-  if (sourceNode === 'deposits') {
-    DB.ref('addFunds/' + id).update(updates).catch(() => {});
+    DB.ref('customers/' + userId + '/walletCoins').transaction(
+      cur => (Number(cur || 0) + coins),
+      (err, committed) => {
+        if (err || !committed) {
+          admToast('Wallet credit failed — request left pending', 'err');
+          return;
+        }
+        DB.ref('transactions').push({
+          userId: userId,
+          amount: coins,
+          reason: `Add Funds Approved (${record.trxId || id})`,
+          ts: Date.now()
+        }).catch(() => {});
+        updateRequestEverywhere(id, record, updates);
+        admToast(`Credited +${coins} Coins successfully!`);
+      }
+    );
   } else {
-    DB.ref('deposits/' + id).update(updates).catch(() => {});
+    updateRequestEverywhere(id, record, updates);
+    admToast('Request approved (no linked customer to credit)', 'err');
   }
-
-  admToast(`Credited +${amount} Coins successfully!`);
 }
 
 function rejectAddFunds(id, sourceNode = 'deposits') {
-  const reason = prompt('Rejection reason (e.g. Invalid TrxID):') || 'Transaction verification failed';
-  const updates = { status: 'REJECTED', rejectReason: reason };
-  DB.ref(sourceNode + '/' + id).update(updates);
-  if (sourceNode === 'deposits') {
-    DB.ref('addFunds/' + id).update(updates).catch(() => {});
-  } else {
-    DB.ref('deposits/' + id).update(updates).catch(() => {});
+  const reason = prompt('Rejection reason (e.g. Invalid TrxID):');
+  if (reason === null) return; // admin cancelled
+  const updates = { status: 'REJECTED', rejectReason: reason || 'Transaction verification failed', rejectedAt: Date.now() };
+  DB.ref(sourceNode + '/' + id).update(updates).catch(() => {});
+  updateRequestEverywhere(id, findAddFundsRecord(id), updates);
+  admToast('Add Funds request marked rejected');
+}
+
+// A request may exist in either `addFunds` or the legacy `deposits` node
+// (sometimes both, under different keys). Write the status to every copy.
+function updateRequestEverywhere(id, record, updates) {
+  if (!id) return;
+  const nodes = ['addFunds', 'deposits'];
+  nodes.forEach(node => DB.ref(node + '/' + id).update(updates).catch(() => {}));
+  if (record && record.trxId) {
+    nodes.forEach(node => {
+      DB.ref(node).orderByChild('trxId').equalTo(record.trxId).once('value', snap => {
+        if (!snap.exists()) return;
+        Object.keys(snap.val() || {}).forEach(k => {
+          if (k !== id) DB.ref(node + '/' + k).update(updates).catch(() => {});
+        });
+      }, () => {}).catch(() => {});
+    });
   }
-  admToast('Add Funds request marked rejected', 'err');
 }
 
 // Backwards compatibility alias
@@ -1225,6 +1356,44 @@ const renderDepositsTab = renderAddFundsTab;
 const renderDepositRows = renderAddFundsRows;
 const approveDeposit = approveAddFunds;
 const rejectDeposit = rejectAddFunds;
+
+/* ==================== CASHOUT (WITHDRAWAL) HANDLING ==================== */
+function findAddFundsRecord(id) {
+  return (AdminState.addFunds && AdminState.addFunds[id]) || (AdminState.deposits && AdminState.deposits[id]) || {};
+}
+
+function completeCashout(id) {
+  const rec = findAddFundsRecord(id);
+  if (!confirm(`Confirm BDT payout of ৳${Number(rec.amount || 0)} to ${rec.payoutNumber || 'customer'}? Coins are already deducted.`)) return;
+  const updates = { status: 'COMPLETED', paidAt: Date.now(), settlementNote: 'Paid by admin' };
+  DB.ref('addFunds/' + id).update(updates).catch(() => {});
+  DB.ref('deposits/' + id).update(updates).catch(() => {});
+  DB.ref('cashouts/' + id).update(updates).catch(() => {});
+  admToast('Cashout marked as paid');
+}
+
+function refundCashout(id, userId, coins) {
+  if (!confirm(`Refund ${coins} Coins back to the customer wallet?`)) return;
+  if (userId && coins) {
+    DB.ref('customers/' + userId + '/walletCoins').transaction(
+      cur => (Number(cur || 0) + coins),
+      (err, committed) => {
+        if (err || !committed) { admToast('Refund failed', 'err'); return; }
+        DB.ref('transactions').push({
+          userId,
+          amount: coins,
+          reason: `Cashout cancelled — Coins refunded (#${id})`,
+          ts: Date.now()
+        }).catch(() => {});
+        const updates = { status: 'REJECTED', rejectReason: 'Cashout cancelled — coins refunded', rejectedAt: Date.now() };
+        DB.ref('addFunds/' + id).update(updates).catch(() => {});
+        DB.ref('deposits/' + id).update(updates).catch(() => {});
+        DB.ref('cashouts/' + id).update(updates).catch(() => {});
+        admToast(`Refunded ${coins} Coins to customer`);
+      }
+    );
+  }
+}
 
 /* ==================== TAB 4: ORDERS & FULFILLMENT ==================== */
 let ordersFilter = 'ALL';
@@ -1261,7 +1430,7 @@ function renderOrdersTab() {
             <div class="item-info">
               <div class="item-title" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <b style="font-size:15px; color:#fff;">${esc(item.productName || item.itemName || 'Marketplace Item')}</b>
-                <span style="color:var(--gold); font-size:13px; font-weight:800;">(🪙 ${coinsCost} Coins / ৳${item.price || coinsCost})</span>
+                <span style="color:var(--gold); font-size:13px; font-weight:800;">(🪙 ${fmtNum(coinsCost)} Coins / ${fmt(item.price || coinsCost)})</span>
                 <span class="status-tag ${(item.status || 'pending').toLowerCase()}">${esc(item.status || 'PENDING')}</span>
               </div>
               <div class="item-sub" style="margin-top:6px; line-height:1.6;">
@@ -1339,6 +1508,11 @@ function fulfillOrder(orderId) {
 }
 
 function refundOrderToWallet(orderId, userId, coins) {
+  const existing = (AdminState.orders || {})[orderId] || {};
+  if (String(existing.status || '').toUpperCase() === 'REFUNDED') {
+    admToast('This order has already been refunded', 'err');
+    return;
+  }
   if (!confirm(`Refund ${coins} Coins back to customer's prepaid wallet?`)) return;
   const reason = prompt('Refund reason note:') || 'Customer requested refund / Stock unavailable';
 
@@ -1519,7 +1693,9 @@ function saveProduct(id) {
   const coins = Number($('#epCoins').value) || price;
   if (!name) return alert('Name is required');
 
+  const existing = id ? (AdminState.products[id] || {}) : {};
   const prod = {
+    ...existing,
     name,
     category: $('#epCat').value,
     deliveryType: $('#epDeliveryType').value,
@@ -1527,8 +1703,8 @@ function saveProduct(id) {
     coins,
     image: $('#epImg').value.trim() || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80',
     desc: $('#epDesc').value.trim(),
-    inStock: true,
-    visible: true,
+    inStock: existing.inStock !== undefined ? existing.inStock : true,
+    visible: existing.visible !== undefined ? existing.visible : true,
     updatedAt: Date.now()
   };
 
@@ -1863,7 +2039,11 @@ function deleteReview(id) {
 /* ==================== TAB 8: BANNERS & PROMOTIONS (CRUD) ==================== */
 function renderPromotionsTab() {
   const s = AdminState.settings || {};
-  const announcement = s.announcement || '⚡ Instant Automated USDT, Payeer & Binance Pay Settlement via bKash/Nagad! Free Fire 115-2000 Diamonds & PUBG UC delivered in seconds.';
+  const rawAnn = s.announcement;
+  const announcement = typeof rawAnn === 'string'
+    ? rawAnn
+    : (rawAnn && rawAnn.text) || '⚡ Instant Automated USDT, Payeer & Binance Pay Settlement via bKash/Nagad! Free Fire 115-2000 Diamonds & PUBG UC delivered in seconds.';
+  const annEnabled = typeof rawAnn === 'string' ? true : (rawAnn ? rawAnn.enabled !== false : true);
   const coupons = Object.entries(s.coupons || {}).map(([id, c]) => ({ id, ...c }));
 
   return `
@@ -1875,6 +2055,13 @@ function renderPromotionsTab() {
       <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">This message scrolls in the top live announcement bar on the user panel.</p>
       <div class="form-field">
         <textarea id="setAnnouncementText" rows="2" style="font-weight:700;">${esc(announcement)}</textarea>
+      </div>
+      <div class="form-field">
+        <label>Show on storefront ticker</label>
+        <select id="setAnnouncementEnabled">
+          <option value="true" ${annEnabled ? 'selected' : ''}>Enabled — scrolling on the top bar</option>
+          <option value="false" ${!annEnabled ? 'selected' : ''}>Disabled — hidden from customers</option>
+        </select>
       </div>
     </div>
 
@@ -1909,9 +2096,11 @@ function renderPromotionsTab() {
 
 function saveAnnouncement() {
   const text = $('#setAnnouncementText').value.trim();
-  DB.ref('settings/announcement').set(text).then(() => {
+  const enabled = ($('#setAnnouncementEnabled')?.value || 'true') === 'true';
+  // Written as an object because the storefront reads { enabled, text }.
+  DB.ref('settings/announcement').set({ enabled, text, updatedAt: Date.now() }).then(() => {
     admToast('Announcement ticker updated on user panel!');
-  });
+  }).catch(err => admToast('Error saving ticker: ' + err.message, 'err'));
 }
 
 function openCouponModal() {
@@ -2028,79 +2217,6 @@ function toggleUserSuspension(userId) {
     admToast(newStatus === 'SUSPENDED' ? 'Customer account suspended' : 'Customer account active');
   });
 }
-
-/* ==================== DEFAULT FALLBACK CONFIGS ==================== */
-const DEFAULT_PAYMENT_ACCOUNTS = {
-  acc_bkash_send: {
-    id: 'acc_bkash_send',
-    provider: 'bkash',
-    type: 'SEND_MONEY',
-    number: '01888123456',
-    label: 'Primary bKash Personal',
-    limit: 'Send Money only • Limit: 25,000৳ • 24/7 Active',
-    active: true,
-    updatedAt: Date.now()
-  },
-  acc_bkash_cashout: {
-    id: 'acc_bkash_cashout',
-    provider: 'bkash',
-    type: 'CASH_OUT',
-    number: '01888987654',
-    label: 'bKash Agent (Cash Out)',
-    limit: 'Cash Out only • Use Agent Option • 24/7 Active',
-    active: true,
-    updatedAt: Date.now()
-  },
-  acc_nagad_send: {
-    id: 'acc_nagad_send',
-    provider: 'nagad',
-    type: 'SEND_MONEY',
-    number: '01999123456',
-    label: 'Nagad Personal (Send Money)',
-    limit: 'Send Money only • Instant Auto-Credit',
-    active: true,
-    updatedAt: Date.now()
-  },
-  acc_nagad_cashout: {
-    id: 'acc_nagad_cashout',
-    provider: 'nagad',
-    type: 'CASH_OUT',
-    number: '01999876543',
-    label: 'Nagad Agent (Cash Out)',
-    limit: 'Agent Cash Out • Immediate Settlement',
-    active: true,
-    updatedAt: Date.now()
-  },
-  acc_rocket_send: {
-    id: 'acc_rocket_send',
-    provider: 'rocket',
-    type: 'SEND_MONEY',
-    number: '017771234567',
-    label: 'DBBL Rocket Personal',
-    limit: '12-digit DBBL number • Send Money',
-    active: true,
-    updatedAt: Date.now()
-  },
-  acc_binance: {
-    id: 'acc_binance',
-    provider: 'binance',
-    type: 'SEND_MONEY',
-    number: '75421939',
-    label: 'Binance Pay UID (USDT)',
-    limit: 'Binance Pay ID: 75421939 • Zero Gas Fee',
-    active: true,
-    updatedAt: Date.now()
-  }
-};
-
-const DEFAULT_HERO_VIDEO = {
-  enabled: true,
-  youtubeUrl: 'https://www.youtube.com/watch?v=ysz5S6PUM-U',
-  videoId: 'ysz5S6PUM-U',
-  title: 'BUY & SELL DOLLAR & GAME TOP-UPS INSTANTLY',
-  subtitle: 'Instant USDT, Payeer & Binance Pay cashout via bKash/Nagad. Free Fire Diamond Top-Up, PUBG UC & Premium Accounts in seconds.',
-  badge: '#1 RATED DIGITAL MARKETPLACE & DOLLAR DESK'
-};
 
 function extractYouTubeId(urlOrId) {
   if (!urlOrId) return 'ysz5S6PUM-U';
@@ -2645,6 +2761,10 @@ function initAdmin() {
 }
 
 document.addEventListener('DOMContentLoaded', initAdmin);
+// Script may be parsed after DOMContentLoaded (deferred/async or cached HTML).
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+  setTimeout(initAdmin, 0);
+}
 window.setAdminTab = setAdminTab;
 window.verifyAdminKey = verifyAdminKey;
 window.adminLogout = adminLogout;
@@ -2653,6 +2773,8 @@ window.rejectExchange = rejectExchange;
 window.approveAddFunds = approveAddFunds;
 window.rejectAddFunds = rejectAddFunds;
 window.approveDeposit = approveAddFunds;
+window.completeCashout = completeCashout;
+window.refundCashout = refundCashout;
 window.rejectDeposit = rejectAddFunds;
 window.saveAllDollarRates = saveAllDollarRates;
 window.openAddCurrencyModal = openAddCurrencyModal;
