@@ -9,10 +9,11 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "node tests/e2e.test.cjs",
+    "test": "node tests/adapter.test.cjs && node tests/e2e.test.cjs",
     "test:deploy": "node tests/netlify.test.cjs && node tests/deploy-smoke.test.cjs && node tests/vercel.test.cjs",
     "verify": "npm run lint && npm run test && npm run build && npm run test:deploy",
-    "test:vercel": "node tests/vercel.test.cjs"
+    "test:vercel": "node tests/vercel.test.cjs",
+    "test:live": "node tests/supabase-live.test.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -27,6 +28,7 @@
     "vite": "^8.3.0"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.45.4",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",

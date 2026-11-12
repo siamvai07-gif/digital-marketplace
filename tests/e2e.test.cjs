@@ -162,7 +162,7 @@ async function main() {
   // ------------------------------------------------------------------
   section('Wallet & orders');
 
-  w.firebase.database().ref('customers/' + custId + '/walletCoins').set(5000);
+  w.NexusDB.DB.ref('customers/' + custId + '/walletCoins').set(5000);
   w.setUser({ ...shared.customers[custId], id: custId, walletCoins: 5000 });
   w.renderApp();
   await U.sleep(250);
@@ -260,7 +260,7 @@ async function main() {
   // buy a product with the wallet
   // Read from the database: the admin page wrote the refund from another
   // window, so the local cache here is intentionally not trusted.
-  const preBuySnap = await w.firebase.database().ref('customers/' + custId + '/walletCoins').once('value');
+  const preBuySnap = await w.NexusDB.DB.ref('customers/' + custId + '/walletCoins').once('value');
   const beforeBuy = Number(preBuySnap.val());
   check('wallet funded for purchase', beforeBuy >= 199, 'balance=' + beforeBuy);
   w.setUser({ ...shared.customers[custId], id: custId, walletCoins: beforeBuy });
@@ -269,13 +269,13 @@ async function main() {
   U.setValue('#pdDeliveryTarget', 'me@example.com');
   w.instantBuyProductWithWallet('prod_canva', 199);
   await U.sleep(600);
-  const balSnap = await w.firebase.database().ref('customers/' + custId + '/walletCoins').once('value');
+  const balSnap = await w.NexusDB.DB.ref('customers/' + custId + '/walletCoins').once('value');
   check('product purchase deducts coins', Number(balSnap.val()) === beforeBuy - 199, 'db=' + balSnap.val() + ' expected=' + (beforeBuy - 199));
   check('product purchase creates an order', Object.keys(shared.orders).length === 2);
 
   // exchange calculator with a fee
   shared.settings = shared.settings || {};
-  w.firebase.database().ref('settings/dollarRates').set({
+  w.NexusDB.DB.ref('settings/dollarRates').set({
     usdt: { id: 'usdt', name: 'USDT', buyRate: 125, sellRate: 121, reserve: 1000, fee: 2, min: 10, max: 2000 }
   });
   await U.sleep(250);
@@ -323,7 +323,7 @@ async function main() {
   // ------------------------------------------------------------------
   section('Suspension enforcement');
 
-  w.firebase.database().ref('customers/' + custId + '/status').set('SUSPENDED');
+  w.NexusDB.DB.ref('customers/' + custId + '/status').set('SUSPENDED');
   await U.sleep(300);
   const beforeSuspended = shared.customers[custId].walletCoins;
   w.location.hash = '#/';
@@ -335,7 +335,7 @@ async function main() {
   check('suspended account cannot spend coins', shared.customers[custId].walletCoins === beforeSuspended);
   check('suspension notice shown', U.toasts().some(t => /suspended/i.test(t)));
 
-  w.firebase.database().ref('customers/' + custId + '/status').set('ACTIVE');
+  w.NexusDB.DB.ref('customers/' + custId + '/status').set('ACTIVE');
   await U.sleep(200);
 
   // ------------------------------------------------------------------

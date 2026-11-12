@@ -85,7 +85,7 @@ async function main() {
 
   // ── Payment / wallet (production bundle) ──────────────────────────
   section('Wallet top-up & payments (production bundle)');
-  w.firebase.database().ref('customers/' + custId + '/walletCoins').set(5000);
+  w.NexusDB.DB.ref('customers/' + custId + '/walletCoins').set(5000);
   w.setUser({ ...shared.customers[custId], id: custId, walletCoins: 5000 });
   w.renderApp();
   await U.sleep(200);
@@ -104,7 +104,7 @@ async function main() {
   w.submitManualPayment();
   await U.sleep(600);
 
-  const afterTopup = Number((await w.firebase.database().ref('customers/' + custId + '/walletCoins').once('value')).val());
+  const afterTopup = Number((await w.NexusDB.DB.ref('customers/' + custId + '/walletCoins').once('value')).val());
   check('top-up does NOT auto-credit the wallet', afterTopup === 5000, 'balance=' + afterTopup);
   const pendingTopup = Object.values(shared.addFunds || {}).find(f => f.trxId === 'BKHTEST123');
   check('top-up recorded in addFunds as PENDING', !!pendingTopup && pendingTopup.status === 'PENDING');
@@ -125,11 +125,11 @@ async function main() {
   w.openProductDetail('prod_canva');
   await U.sleep(120);
   U.setValue('#pdDeliveryTarget', 'buyer@example.com');
-  const beforeBuy = Number((await w.firebase.database().ref('customers/' + custId + '/walletCoins').once('value')).val());
+  const beforeBuy = Number((await w.NexusDB.DB.ref('customers/' + custId + '/walletCoins').once('value')).val());
   w.setUser({ ...shared.customers[custId], id: custId, walletCoins: beforeBuy });
   w.instantBuyProductWithWallet('prod_canva', 199);
   await U.sleep(700);
-  const afterBuy = Number((await w.firebase.database().ref('customers/' + custId + '/walletCoins').once('value')).val());
+  const afterBuy = Number((await w.NexusDB.DB.ref('customers/' + custId + '/walletCoins').once('value')).val());
   check('product purchase debits the wallet', afterBuy === beforeBuy - 199, `${beforeBuy}->${afterBuy}`);
   const orders = Object.values(shared.orders || {});
   check('purchase creates a fulfilable order', orders.length === 1 && orders[0].status === 'PENDING');
@@ -177,11 +177,11 @@ async function main() {
   aw.setAdminTab('addFunds');
   await A.sleep(300);
   const pendingId = Object.keys(shared.addFunds).find(k => shared.addFunds[k].status === 'PENDING');
-  const walletBefore = Number((await aw.firebase.database().ref('customers/' + custId + '/walletCoins').once('value')).val());
+  const walletBefore = Number((await aw.NexusDB.DB.ref('customers/' + custId + '/walletCoins').once('value')).val());
   if (pendingId) {
     aw.approveAddFunds(pendingId, custId, shared.addFunds[pendingId].coins, 'addFunds');
     await A.sleep(500);
-    const walletAfter = Number((await aw.firebase.database().ref('customers/' + custId + '/walletCoins').once('value')).val());
+    const walletAfter = Number((await aw.NexusDB.DB.ref('customers/' + custId + '/walletCoins').once('value')).val());
     check('admin approval credits the wallet', walletAfter === walletBefore + shared.addFunds[pendingId].coins, `${walletBefore}->${walletAfter}`);
     check('request marked completed', shared.addFunds[pendingId].status === 'COMPLETED');
   } else {
@@ -207,7 +207,7 @@ async function main() {
     const before = d.querySelector('#appView').innerHTML;
     const oid = Object.keys(shared.orders || {})[0];
     if (oid) {
-      await w.firebase.database().ref('orders/' + oid).update({ status: 'REFUNDED', refundReason: 'Live sync probe' });
+      await w.NexusDB.DB.ref('orders/' + oid).update({ status: 'REFUNDED', refundReason: 'Live sync probe' });
       await U.sleep(400);
       const after = d.querySelector('#appView').innerHTML;
       check('order status updated live without re-render call',

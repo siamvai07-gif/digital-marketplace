@@ -27,9 +27,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="../vendor/supabase.js"></script>
+<script src="../vendor/nexus-db.js"></script>
+
+
 <style>
 :root {
   --primary: #00f2fe;
@@ -1024,36 +1025,15 @@ const firebaseConfig = {
 
 let DB = null;
 let auth = null;
+// Data + auth run on Supabase (Postgres + Realtime). src/supabase-db.js supplies a
+// Firebase-shaped DB/auth adapter so every existing call site keeps working.
 try {
-  if (typeof firebase !== 'undefined') {
-    firebase.initializeApp(firebaseConfig);
-    // Force long-polling so the Realtime Database still receives live updates when
-    // WebSockets are blocked (some proxies, corporate networks, and serverless hosts).
-    // In the v8 SDK this is an INTERNAL namespace call, not a config option —
-    // `experimentalForceLongPolling` belongs to v9 Firestore and does nothing here.
-    try {
-      if (firebase.database && firebase.database.INTERNAL &&
-          typeof firebase.database.INTERNAL.forceLongPolling === 'function') {
-        firebase.database.INTERNAL.forceLongPolling();
-      }
-    } catch (e) { /* transport stays on its default */ }
-    DB = firebase.database();
-    if (typeof firebase.auth === 'function') {
-      auth = firebase.auth();
-      // Admin reads the whole database, which rules gate behind `auth != null`.
-      if (typeof auth.onAuthStateChanged === 'function' && typeof auth.signInAnonymously === 'function') {
-        auth.onAuthStateChanged(u => {
-          if (!u) {
-            Promise.resolve(auth.signInAnonymously()).catch(err => {
-              console.warn('Anonymous auth unavailable:', (err && err.code) || err);
-            });
-          }
-        });
-      }
-    }
+  if (window.NexusDB && window.NexusDB.ready()) {
+    DB = window.NexusDB.DB;
+    auth = window.NexusDB.auth();
   }
 } catch (e) {
-  console.warn('Firebase error in admin:', e);
+  console.warn('Supabase initialization error in admin:', e);
 }
 
 /* ==================== DATA CACHE ==================== */
