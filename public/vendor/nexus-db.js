@@ -569,6 +569,15 @@
     ready,
     sb,
     auth: authAdapter,
+    // Exposed for Storage uploads (XHR needs the raw endpoint + anon key).
+    supabaseUrl: SUPABASE_URL,
+    anonKey: SUPABASE_ANON_KEY,
+    storagePublicUrl(bucket) {
+      return SUPABASE_URL + '/storage/v1/object/public/' + bucket;
+    },
+    storageObjectUrl(bucket, path) {
+      return SUPABASE_URL + '/storage/v1/object/public/' + bucket + '/' + path.split('/').map(encodeURIComponent).join('/');
+    },
     _cache: cache,
     _fetchTable: fetchTable,
     _parsePath: parsePath,

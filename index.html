@@ -759,13 +759,20 @@ body.desktop-forced-mode {
   pointer-events: none;
   z-index: 1;
 }
-.video-hero-bg iframe {
+.video-hero-bg iframe,
+.video-hero-bg .hero-video-el {
   width: 100%;
   height: 100%;
   border: none;
   filter: contrast(1.15) brightness(0.68) saturate(1.25);
   transform: scale(1.4);
   pointer-events: none;
+}
+/* A <video> fills its box only when it behaves like an image. */
+.video-hero-bg .hero-video-el {
+  object-fit: cover;
+  display: block;
+  background: #060913;
 }
 .video-hero-overlay {
   position: absolute;
@@ -2873,8 +2880,10 @@ const DEFAULT_PAYMENT_ACCOUNTS = {
 
 const DEFAULT_HERO_VIDEO = {
   enabled: true,
+  source: 'youtube',            // 'youtube' | 'upload'
   youtubeUrl: 'https://www.youtube.com/watch?v=ysz5S6PUM-U',
   videoId: 'ysz5S6PUM-U',
+  videoUrl: '',                 // direct file URL (Supabase Storage or any CDN)
   title: 'BUY & SELL DOLLAR & GAME TOP-UPS INSTANTLY',
   subtitle: 'Instant USDT, Payeer & Binance Pay cashout via bKash/Nagad. Free Fire Diamond Top-Up, PUBG UC & Premium Accounts in seconds.',
   badge: '#1 RATED DIGITAL MARKETPLACE & DOLLAR DESK'
@@ -2886,6 +2895,41 @@ function extractYouTubeId(urlOrId) {
   if (/^[a-zA-Z0-9_-]{11}$/.test(str)) return str;
   const match = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
   return match ? match[1] : 'ysz5S6PUM-U';
+}
+
+// True when a URL points at a video file we can play with <video> rather than a
+// YouTube page/embed. Supabase Storage URLs, CDNs and data: URIs all qualify.
+const DIRECT_VIDEO_RE = /\.(mp4|webm|ogv|ogg|mov|m4v)(\?|#|$)/i;
+const YOUTUBE_RE = /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))/i;
+
+function isDirectVideoUrl(url) {
+  if (!url) return false;
+  const str = String(url).trim();
+  if (/^data:video\//i.test(str)) return true;
+  if (YOUTUBE_RE.test(str)) return false;
+  return DIRECT_VIDEO_RE.test(str) || /\/storage\/v1\/object\/public\//i.test(str);
+}
+
+// Decides what the hero should render. Order of precedence:
+//   1. an explicit direct video URL (uploaded file)
+//   2. a YouTube URL / id
+//   3. nothing (caller falls back to the graphic hero)
+function resolveHeroVideo(hero) {
+  const h = hero || {};
+  const direct = (h.videoUrl || '').trim();
+  const yt = (h.youtubeUrl || '').trim();
+
+  if (h.source === 'youtube' && yt) {
+    const id = extractYouTubeId(yt || h.videoId);
+    return id ? { kind: 'youtube', id } : { kind: 'none' };
+  }
+  if (direct && isDirectVideoUrl(direct)) return { kind: 'video', url: direct };
+  if (h.source === 'upload') return { kind: 'none' };
+  if (yt) {
+    const id = extractYouTubeId(yt || h.videoId);
+    if (id) return { kind: 'youtube', id };
+  }
+  return { kind: 'none' };
 }
 
 function fallbackCopyText(text) {
@@ -3259,19 +3303,29 @@ window.addEventListener('hashchange', () => {
 
 function renderHeroSection() {
   const hero = { ...DEFAULT_HERO_VIDEO, ...(State.settings.heroVideo || {}) };
-  const vidId = extractYouTubeId(hero.youtubeUrl || hero.videoId);
+  const player = resolveHeroVideo(hero);
 
-  if (hero.enabled !== false && vidId) {
-    return `
-      <!-- 3D Animated YouTube Video Hero Section -->
-      <div class="hero-wrap video-hero">
-        <div class="video-hero-bg">
-          <iframe
-            src="https://www.youtube.com/embed/${vidId}?autoplay=1&mute=1&loop=1&playlist=${vidId}&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
+  if (hero.enabled !== false && player.kind !== 'none') {
+    // Uploaded file -> native player (muted is required for autoplay by every
+    // browser); YouTube -> iframe. The surrounding 3D hero is identical.
+    const media = player.kind === 'video'
+      ? `<video class="hero-video-el"
+             src="${esc(player.url)}"
+             autoplay muted loop playsinline preload="auto"
+             disablepictureinpicture
+             aria-hidden="true"></video>`
+      : `<iframe
+            src="https://www.youtube.com/embed/${player.id}?autoplay=1&mute=1&loop=1&playlist=${player.id}&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowfullscreen
             title="Nexus Hero Cinema">
-          </iframe>
+          </iframe>`;
+
+    return `
+      <!-- 3D Animated Video Hero Section (uploaded file or YouTube) -->
+      <div class="hero-wrap video-hero">
+        <div class="video-hero-bg">
+          ${media}
         </div>
         <div class="video-hero-overlay"></div>
         <div class="video-slide">
@@ -3286,7 +3340,7 @@ function renderHeroSection() {
             <div class="h-pill"><i class="fa-solid fa-bolt" style="color:#fbbf24"></i><span>10s Instant Delivery</span></div>
             <div class="h-pill"><i class="fa-solid fa-shield-check" style="color:#34d399"></i><span>100% Escrow Security</span></div>
             <div class="h-pill"><i class="fa-solid fa-star" style="color:#f59e0b"></i><span>4.9/5 Rating (12k+ Orders)</span></div>
-            <div class="h-pill"><i class="fa-brands fa-youtube" style="color:#ef4444"></i><span>Live 3D Cinema Feed</span></div>
+            <div class="h-pill"><i class="fa-solid fa-${player.kind === 'video' ? 'film' : 'circle-play'}" style="color:#ef4444"></i><span>Live 3D Cinema Feed</span></div>
           </div>
         </div>
       </div>
