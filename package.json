@@ -5,15 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
+    "build": "node scripts/build-vendor.mjs && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "node tests/adapter.test.cjs && node tests/e2e.test.cjs",
     "test:deploy": "node tests/netlify.test.cjs && node tests/deploy-smoke.test.cjs && node tests/vercel.test.cjs",
-    "verify": "npm run lint && npm run test && npm run build && npm run test:deploy",
+    "verify": "npm run lint && npm run test && npm run build && npm run test:deploy && npm run test:render",
     "test:vercel": "node tests/vercel.test.cjs",
-    "test:live": "node tests/supabase-live.test.cjs"
+    "test:live": "node tests/supabase-live.test.cjs",
+    "vendor": "node scripts/build-vendor.mjs",
+    "test:render": "node tests/render.test.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
