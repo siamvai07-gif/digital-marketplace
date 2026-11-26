@@ -11,11 +11,12 @@
     "lint": "tsc --noEmit",
     "test": "node tests/adapter.test.cjs && node tests/e2e.test.cjs",
     "test:deploy": "node tests/netlify.test.cjs && node tests/deploy-smoke.test.cjs && node tests/vercel.test.cjs",
-    "verify": "npm run lint && npm run test && npm run build && npm run test:deploy && npm run test:render",
+    "verify": "npm run lint && npm run test && npm run build && npm run test:deploy && npm run test:render && npm run test:admin",
     "test:vercel": "node tests/vercel.test.cjs",
     "test:live": "node tests/supabase-live.test.cjs",
     "vendor": "node scripts/build-vendor.mjs",
-    "test:render": "node tests/render.test.cjs"
+    "test:render": "node tests/render.test.cjs",
+    "test:admin": "node tests/admin-login.test.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
