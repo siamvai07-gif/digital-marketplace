@@ -989,7 +989,10 @@ function verifyAdminKey() {
           .catch(() => fail('Invalid access key.'));
         return;
       }
-      fail('Sign-in failed. Check your connection.');
+      // Never mask a server fault behind a connection message: say what the
+      // auth service actually returned so the cause is diagnosable.
+      console.error('Admin sign-in failed:', { code, message: err && err.message });
+      fail(err && err.message ? 'Sign-in failed: ' + err.message : 'Sign-in failed. Check your connection.');
     });
 }
 
