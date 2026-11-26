@@ -870,8 +870,10 @@ const DEFAULT_PAYMENT_ACCOUNTS = {
 
 const DEFAULT_HERO_VIDEO = {
   enabled: true,
+  source: 'youtube',            // 'youtube' | 'upload'
   youtubeUrl: 'https://www.youtube.com/watch?v=ysz5S6PUM-U',
   videoId: 'ysz5S6PUM-U',
+  videoUrl: '',                 // direct file URL (Supabase Storage or any CDN)
   title: 'BUY & SELL DOLLAR & GAME TOP-UPS INSTANTLY',
   subtitle: 'Instant USDT, Payeer & Binance Pay cashout via bKash/Nagad. Free Fire Diamond Top-Up, PUBG UC & Premium Accounts in seconds.',
   badge: '#1 RATED DIGITAL MARKETPLACE & DOLLAR DESK'
@@ -2249,6 +2251,41 @@ function extractYouTubeId(urlOrId) {
   return match ? match[1] : 'ysz5S6PUM-U';
 }
 
+// True when a URL points at a video file we can play with <video> rather than a
+// YouTube page/embed. Supabase Storage URLs, CDNs and data: URIs all qualify.
+const DIRECT_VIDEO_RE = /\.(mp4|webm|ogv|ogg|mov|m4v)(\?|#|$)/i;
+const YOUTUBE_RE = /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))/i;
+
+function isDirectVideoUrl(url) {
+  if (!url) return false;
+  const str = String(url).trim();
+  if (/^data:video\//i.test(str)) return true;
+  if (YOUTUBE_RE.test(str)) return false;
+  return DIRECT_VIDEO_RE.test(str) || /\/storage\/v1\/object\/public\//i.test(str);
+}
+
+// Decides what the hero should render. Order of precedence:
+//   1. an explicit direct video URL (uploaded file)
+//   2. a YouTube URL / id
+//   3. nothing (caller falls back to the graphic hero)
+function resolveHeroVideo(hero) {
+  const h = hero || {};
+  const direct = (h.videoUrl || '').trim();
+  const yt = (h.youtubeUrl || '').trim();
+
+  if (h.source === 'youtube' && yt) {
+    const id = extractYouTubeId(yt || h.videoId);
+    return id ? { kind: 'youtube', id } : { kind: 'none' };
+  }
+  if (direct && isDirectVideoUrl(direct)) return { kind: 'video', url: direct };
+  if (h.source === 'upload') return { kind: 'none' };
+  if (yt) {
+    const id = extractYouTubeId(yt || h.videoId);
+    if (id) return { kind: 'youtube', id };
+  }
+  return { kind: 'none' };
+}
+
 /* ==================== TAB 10: SETTINGS, GATEWAYS & HERO VIDEO ==================== */
 function renderSettingsTab() {
   const s = AdminState.settings || {};
@@ -2256,7 +2293,10 @@ function renderSettingsTab() {
   const accountsList = Object.entries(rawAccounts).map(([id, a]) => ({ id, ...a }));
 
   const hero = { ...DEFAULT_HERO_VIDEO, ...(s.heroVideo || {}) };
-  const heroVidId = extractYouTubeId(hero.youtubeUrl || hero.videoId);
+  const HERO_BUCKET_URL = (window.NexusDB && window.NexusDB.storagePublicUrl)
+    ? window.NexusDB.storagePublicUrl('hero-videos')
+    : `${(window.NexusDB && NexusDB.supabaseUrl) || 'https://hvntegcbrjffkwlbkrba.supabase.co'}/storage/v1/object/public/hero-videos`;
+  const heroPlayer = resolveHeroVideo(hero);
 
   const brand = s.brand || { name: 'NEXUS DIGITAL', tagline: 'World-Class Digital Marketplace' };
   const contact = s.contact || { whatsapp: '01888123456', telegram: '@nexusdigital', supportEmail: 'support@nexus.io' };
@@ -2337,8 +2377,8 @@ function renderSettingsTab() {
     <div class="data-card">
       <div class="card-head">
         <div>
-          <h3><i class="fa-brands fa-youtube" style="color:#ff0033;"></i>3D Animated YouTube Video Hero</h3>
-          <span style="font-size:12px; color:var(--muted);">Cinematic background video hero with autoplay, mute, and looping</span>
+          <h3><i class="fa-solid fa-film" style="color:var(--primary);"></i>3D Animated Video Hero</h3>
+          <span style="font-size:12px; color:var(--muted);">Upload a video file or use YouTube • autoplay, mute, looping</span>
         </div>
         <button class="btn btn-primary btn-sm" onclick="saveHeroVideoSettings()">
           <i class="fa-solid fa-save"></i> Save Video Hero Settings
@@ -2349,10 +2389,48 @@ function renderSettingsTab() {
         <div class="form-field">
           <label>Video Hero Display Mode</label>
           <select id="heroEnabled">
-            <option value="true" ${hero.enabled !== false ? 'selected' : ''}>⚡ Enabled: Show 3D YouTube Video Hero (Cinematic)</option>
+            <option value="true" ${hero.enabled !== false ? 'selected' : ''}>⚡ Enabled: Show 3D Video Hero (Cinematic)</option>
             <option value="false" ${hero.enabled === false ? 'selected' : ''}>Standard: Show High-Res Animated Graphic Banner</option>
           </select>
         </div>
+        <div class="form-field">
+          <label>Hero Video Source</label>
+          <select id="heroSource" onchange="onHeroSourceChange()">
+            <option value="upload" ${hero.source === 'upload' ? 'selected' : ''}>📤 Uploaded Video File (MP4 / WebM)</option>
+            <option value="youtube" ${hero.source === 'youtube' ? 'selected' : ''}>▶️ YouTube Video (URL or Video ID)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- SOURCE: uploaded video file -->
+      <div id="heroUploadPane" style="display:${hero.source === 'upload' ? 'block' : 'none'};">
+        <div class="form-field">
+          <label>Upload Video File (.mp4, .webm, .mov • max 50MB)</label>
+          <input type="file" id="heroVideoFile" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                 onchange="uploadHeroVideoFile(this.files[0])"
+                 style="width:100%; padding:12px; background:rgba(0,0,0,0.35); border:1px dashed var(--border); border-radius:12px; color:#fff; cursor:pointer;">
+        </div>
+
+        <!-- Upload progress -->
+        <div id="heroUploadProgressWrap" style="display:none; margin:10px 0 14px;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:var(--muted); margin-bottom:6px;">
+            <span id="heroUploadStatus">Uploading…</span>
+            <span id="heroUploadPercent">0%</span>
+          </div>
+          <div style="height:8px; background:rgba(255,255,255,0.08); border-radius:99px; overflow:hidden;">
+            <div id="heroUploadBar" style="height:100%; width:0%; background:linear-gradient(90deg,var(--primary),var(--accent)); border-radius:99px; transition:width .2s ease;"></div>
+          </div>
+        </div>
+        <div id="heroUploadError" style="display:none; margin-bottom:12px; padding:10px 14px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); border-radius:12px; font-size:13px; color:#fca5a5;"></div>
+
+        <div class="form-field">
+          <label>Video File URL (auto-filled after upload • click Save to publish)</label>
+          <input id="heroVideoUrl" value="${esc(hero.videoUrl || '')}" placeholder="${esc(HERO_BUCKET_URL)}/hero-....mp4" oninput="updateHeroPreview()">
+        </div>
+      </div>
+
+      <!-- SOURCE: YouTube -->
+      <div id="heroYoutubePane" style="display:${hero.source === 'youtube' ? 'block' : 'none'};">
         <div class="form-field">
           <label>YouTube Video URL or Video ID</label>
           <input id="heroYoutubeUrl" value="${esc(hero.youtubeUrl || 'https://www.youtube.com/watch?v=ysz5S6PUM-U')}" placeholder="https://www.youtube.com/watch?v=..." oninput="updateHeroPreview()">
@@ -2380,12 +2458,22 @@ function renderSettingsTab() {
         <label style="display:block; font-size:11px; font-weight:800; text-transform:uppercase; color:var(--muted); margin-bottom:8px;">
           Live Video Hero Player Preview:
         </label>
-        <div style="position:relative; width:100%; aspect-ratio:16/9; max-height:280px; overflow:hidden; border-radius:12px; background:#000;">
-          <iframe id="heroPreviewIframe"
-            src="https://www.youtube-nocookie.com/embed/${heroVidId}?autoplay=1&mute=1&loop=1&playlist=${heroVidId}&controls=0&showinfo=0&rel=0&playsinline=1"
-            style="width:100%; height:100%; border:none;"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
-          </iframe>
+        <div id="heroPreviewStage" style="position:relative; width:100%; aspect-ratio:16/9; max-height:280px; overflow:hidden; border-radius:12px; background:#000;">
+          ${heroPlayer.kind === 'video'
+            ? `<video id="heroPreviewVideo" src="${esc(heroPlayer.url)}" autoplay muted loop playsinline controls
+                     style="width:100%; height:100%; object-fit:cover; display:block; background:#000;"></video>`
+            : heroPlayer.kind === 'youtube'
+              ? `<iframe id="heroPreviewIframe"
+                       src="https://www.youtube-nocookie.com/embed/${heroPlayer.id}?autoplay=1&mute=1&loop=1&playlist=${heroPlayer.id}&controls=0&showinfo=0&rel=0&playsinline=1"
+                       style="width:100%; height:100%; border:none;"
+                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+                 </iframe>`
+              : `<div style="display:flex; height:100%; align-items:center; justify-content:center; color:var(--muted); font-size:13px; text-align:center; padding:20px;">
+                   No hero video set. Upload a file or paste a YouTube URL above.
+                 </div>`}
+        </div>
+        <div id="heroPreviewMeta" style="margin-top:8px; font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase;">
+          ${heroPlayer.kind === 'video' ? 'Source: uploaded video file' : heroPlayer.kind === 'youtube' ? 'Source: YouTube' : 'Source: none'}
         </div>
       </div>
     </div>
@@ -2420,30 +2508,201 @@ function renderSettingsTab() {
   `;
 }
 
+/* ---------------- Hero video: source switching & upload ---------------- */
+
+function onHeroSourceChange() {
+  const src = $('#heroSource').value;
+  const up = $('#heroUploadPane');
+  const yt = $('#heroYoutubePane');
+  if (up) up.style.display = src === 'upload' ? 'block' : 'none';
+  if (yt) yt.style.display = src === 'youtube' ? 'block' : 'none';
+  updateHeroPreview();
+}
+
+// Renders the same decision the storefront will make, so the preview cannot
+// disagree with what customers see.
+function currentHeroDraft() {
+  return {
+    source: ($('#heroSource') || {}).value || 'youtube',
+    youtubeUrl: (($('#heroYoutubeUrl') || {}).value || '').trim(),
+    videoUrl: (($('#heroVideoUrl') || {}).value || '').trim(),
+  };
+}
+
 function updateHeroPreview() {
-  const url = $('#heroYoutubeUrl')?.value.trim();
-  const id = extractYouTubeId(url);
-  const iframe = $('#heroPreviewIframe');
-  if (iframe) {
-    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&showinfo=0&rel=0&playsinline=1`;
+  const stage = $('#heroPreviewStage');
+  const meta = $('#heroPreviewMeta');
+  if (!stage) return;
+
+  const player = resolveHeroVideo(currentHeroDraft());
+
+  if (player.kind === 'video') {
+    stage.innerHTML = `<video id="heroPreviewVideo" src="${esc(player.url)}" autoplay muted loop playsinline controls
+      style="width:100%; height:100%; object-fit:cover; display:block; background:#000;"></video>`;
+    if (meta) meta.textContent = 'Source: uploaded video file';
+    const v = stage.querySelector('video');
+    // Surface a bad URL instead of showing a silent black box.
+    if (v) v.addEventListener('error', () => {
+      if (meta) meta.textContent = 'Source: uploaded file — could not load (check the URL)';
+    }, { once: true });
+    return;
   }
+
+  if (player.kind === 'youtube') {
+    stage.innerHTML = `<iframe id="heroPreviewIframe"
+      src="https://www.youtube-nocookie.com/embed/${player.id}?autoplay=1&mute=1&loop=1&playlist=${player.id}&controls=0&showinfo=0&rel=0&playsinline=1"
+      style="width:100%; height:100%; border:none;"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>`;
+    if (meta) meta.textContent = 'Source: YouTube';
+    return;
+  }
+
+  stage.innerHTML = `<div style="display:flex; height:100%; align-items:center; justify-content:center;
+    color:var(--muted); font-size:13px; text-align:center; padding:20px;">
+    No hero video set. Upload a file or paste a YouTube URL above.</div>`;
+  if (meta) meta.textContent = 'Source: none';
+}
+
+const HERO_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+const HERO_VIDEO_EXTS = ['mp4', 'webm', 'mov', 'm4v'];
+
+function heroUploadUi(state, message, percent) {
+  const wrap = $('#heroUploadProgressWrap');
+  const bar = $('#heroUploadBar');
+  const pct = $('#heroUploadPercent');
+  const status = $('#heroUploadStatus');
+  const err = $('#heroUploadError');
+  if (!wrap) return;
+  if (state === 'error') {
+    wrap.style.display = 'none';
+    if (err) { err.style.display = 'block'; err.textContent = message; }
+    return;
+  }
+  if (err) err.style.display = 'none';
+  wrap.style.display = 'block';
+  if (bar) bar.style.width = Math.max(0, Math.min(100, percent || 0)) + '%';
+  if (pct) pct.textContent = Math.round(percent || 0) + '%';
+  if (status) status.textContent = message || 'Uploading…';
+}
+
+async function uploadHeroVideoFile(file) {
+  if (!file) return;
+
+  const fail = msg => heroUploadUi('error', msg);
+
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!HERO_VIDEO_EXTS.includes(ext)) {
+    return fail('Unsupported file type .' + ext + '. Use MP4, WebM or MOV.');
+  }
+  if (!/^video\//.test(file.type || '') && ext !== 'mov') {
+    return fail('That file does not look like a video (' + (file.type || 'unknown type') + ').');
+  }
+  if (file.size > HERO_VIDEO_MAX_BYTES) {
+    return fail('File is ' + (file.size / 1048576).toFixed(1) + 'MB. The limit is 50MB.');
+  }
+
+  const client = (window.NexusDB && window.NexusDB.sb) ? window.NexusDB.sb() : null;
+  if (!client) return fail('Storage is unavailable — the Supabase client did not initialise.');
+
+  const { data: sessionData } = await client.auth.getSession();
+  if (!sessionData || !sessionData.session) {
+    return fail('You must be signed in as the admin to upload. Please sign in again.');
+  }
+
+  const safeName = (file.name || 'hero-video')
+    .toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-60);
+  const path = `hero-${Date.now().toString(36)}-${safeName  || 'video.' + ext}`;
+
+  heroUploadUi('uploading', 'Uploading…', 0);
+
+  // supabase-js has no native progress events; XHR gives us real byte counts.
+  const uploadUrl = `${(window.NexusDB.supabaseUrl || 'https://hvntegcbrjffkwlbkrba.supabase.co')}/storage/v1/object/hero-videos/${encodeURIComponent(path)}`;
+  const token = sessionData.session.access_token;
+
+  const result = await new Promise(resolve => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', uploadUrl, true);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+    xhr.setRequestHeader('apikey', window.NexusDB.anonKey || '');
+    xhr.setRequestHeader('x-upsert', 'false');
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) {
+        heroUploadUi('uploading', 'Uploading…', (e.loaded / e.total) * 100);
+      }
+    };
+    xhr.onload = () => {
+      let body = null;
+      try { body = JSON.parse(xhr.responseText || '{}'); } catch (e) { body = null; }
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, body });
+    };
+    xhr.onerror = () => resolve({ ok: false, status: 0, body: null, network: true });
+    xhr.send(file);
+  });
+
+  if (!result.ok) {
+    const detail = result.body && (result.body.message || result.body.error);
+    if (result.status === 403 || result.status === 401) {
+      return fail('Upload rejected: you are not authorised to write to hero-videos. ' + (detail || ''));
+    }
+    if (result.status === 413) return fail('Upload rejected: the file exceeds the 50MB bucket limit.');
+    if (result.status === 415 || /mime/i.test(detail || '')) {
+      return fail('Upload rejected: that video format is not allowed. Use MP4 or WebM.');
+    }
+    return fail('Upload failed' + (result.network ? ' (network error)' : ` (HTTP ${result.status})`) +
+      (detail ? ': ' + detail : '.'));
+  }
+
+  heroUploadUi('uploading', 'Upload complete', 100);
+
+  const publicUrl = `${(window.NexusDB.supabaseUrl || 'https://hvntegcbrjffkwlbkrba.supabase.co')}/storage/v1/object/public/hero-videos/${encodeURIComponent(path)}`;
+
+  const urlInput = $('#heroVideoUrl');
+  if (urlInput) urlInput.value = publicUrl;
+  if ($('#heroSource')) $('#heroSource').value = 'upload';
+  onHeroSourceChange();
+  updateHeroPreview();
+
+  admToast('Video uploaded. Click "Save Video Hero Settings" to publish it.');
+  setTimeout(() => {
+    const wrap = $('#heroUploadProgressWrap');
+    if (wrap) wrap.style.display = 'none';
+  }, 1500);
 }
 
 function saveHeroVideoSettings() {
-  const url = $('#heroYoutubeUrl').value.trim();
-  const videoId = extractYouTubeId(url);
+  const source = ($('#heroSource') || {}).value || 'youtube';
+  const ytUrl = (($('#heroYoutubeUrl') || {}).value || '').trim();
+  const fileUrl = (($('#heroVideoUrl') || {}).value || '').trim();
+
+  if (source === 'upload' && !fileUrl) {
+    admToast('Upload a video file (or paste its URL) before saving.', 'err');
+    return;
+  }
+  if (source === 'upload' && !isDirectVideoUrl(fileUrl)) {
+    admToast('That URL does not look like a direct video file (.mp4/.webm).', 'err');
+    return;
+  }
+
   const heroData = {
-    enabled: $('#heroEnabled').value === 'true',
-    youtubeUrl: url,
-    videoId: videoId,
-    title: $('#heroTitle').value.trim(),
-    subtitle: $('#heroSubtitle').value.trim(),
-    badge: $('#heroBadge').value.trim(),
+    enabled: ($('#heroEnabled') || {}).value === 'true',
+    source: source,
+    youtubeUrl: ytUrl,
+    videoId: extractYouTubeId(ytUrl),
+    videoUrl: fileUrl,
+    title: (($('#heroTitle') || {}).value || '').trim(),
+    subtitle: (($('#heroSubtitle') || {}).value || '').trim(),
+    badge: (($('#heroBadge') || {}).value || '').trim(),
     updatedAt: Date.now()
   };
 
   DB.ref('settings/heroVideo').set(heroData).then(() => {
-    admToast('3D YouTube Video Hero settings saved and live!');
+    admToast(source === 'upload'
+      ? 'Hero video (uploaded file) saved and live!'
+      : '3D YouTube Video Hero settings saved and live!');
+  }).catch(err => {
+    console.error('Failed to save hero settings:', err);
+    admToast('Could not save hero settings: ' + ((err && err.message) || 'unknown error'), 'err');
   });
 }
 
@@ -2830,6 +3089,8 @@ window.togglePaymentAccountActive = togglePaymentAccountActive;
 window.deletePaymentAccount = deletePaymentAccount;
 window.saveHeroVideoSettings = saveHeroVideoSettings;
 window.updateHeroPreview = updateHeroPreview;
+window.onHeroSourceChange = onHeroSourceChange;
+window.uploadHeroVideoFile = uploadHeroVideoFile;
 window.saveBrandSettings = saveBrandSettings;
 window.seedDemoCatalog = seedDemoCatalog;
 window.closeAdminModal = closeAdminModal;
